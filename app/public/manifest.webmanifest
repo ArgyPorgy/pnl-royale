@@ -1,0 +1,1 @@
+{ "name": "PnL Royale", "short_name": "Royale", "start_url": "/", "display": "standalone", "background_color": "#07070d", "theme_color": "#07070d", "icons": [{ "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml" }] }
