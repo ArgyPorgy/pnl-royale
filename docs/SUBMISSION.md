@@ -1,6 +1,6 @@
 # Submission copy (build.magicblock.app → Solana Blitz v10)
 
-Paste-ready fields. Fill the three `TODO` links after hosting the app, pushing the repo and uploading the video.
+Paste-ready fields. Fill the two `TODO` links after hosting the app and uploading the video.
 
 **Project name:** PnL Royale
 
@@ -11,7 +11,7 @@ Battle royale for traders. Up to 16 players stake USDC and trade live Pyth Lazer
 
 **Project website:** TODO (Vercel URL of `app/`)
 
-**GitHub repo:** TODO (public)
+**GitHub repo:** https://github.com/ArgyPorgy/pnl-royale
 
 **Pitch & demo video:** TODO (3 minutes, script in `docs/DEMO.md`)
 
