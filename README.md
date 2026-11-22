@@ -155,6 +155,8 @@ These came from reading the SDK and validator source and from the tests. Each is
 | Task-ID collision | Task ids derive from `hash(program_id, room, salt)` |
 | Collusion / sybil hedging | Not fully preventable: one seat per wallet, a paid entry per seat, top-heavy payouts, Elo, and a post-round public replay for heuristics |
 
+**Dependencies:** Next.js 15.5.29 and React 19.1.10 (patched for CVE-2025-66478, the React Server Components RCE), with postcss pinned to 8.5.32. `npm audit` still reports advisories in `bigint-buffer`, `@solana/buffer-layout-utils` and `@solana/spl-token` (through `@solana/web3.js` 1.x), and in `toml` (Anchor's Node tooling). None has an upstream fix on the web3.js 1.x line, and none processes attacker-controlled input in this app.
+
 **Upgrade authority:** the deployer key (a hardware wallet is recommended). Consider freezing upgrades after the hackathon. Deploy and admin keys never live in this repo.
 
 ---
