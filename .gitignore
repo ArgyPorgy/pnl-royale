@@ -1,0 +1,14 @@
+target/
+node_modules/
+.anchor/
+.next/
+dist/
+*.log
+.env
+.env.local
+**/*-keypair.json
+!tests-magicsvm/fixtures/*.json
+test-ledger/
+.DS_Store
+
+*.tsbuildinfo

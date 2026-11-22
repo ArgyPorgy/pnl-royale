@@ -1,0 +1,27 @@
+{
+  "name": "pnl-royale",
+  "private": true,
+  "workspaces": [
+    "app",
+    "relayer"
+  ],
+  "scripts": {
+    "build:program": "./scripts/build.sh",
+    "test:program": "cargo test -p royale --lib && cd tests-magicsvm && cargo test",
+    "dev": "npm run dev -w app",
+    "build:app": "npm run build -w app",
+    "relayer": "npm run start -w relayer",
+    "selftest": "tsx scripts/sdk-selftest.ts"
+  },
+  "devDependencies": {
+    "tsx": "4.20.5",
+    "typescript": "5.9.2"
+  },
+  "overrides": {
+    "@solana/web3.js": "1.98.4",
+    "react": "19.1.1",
+    "react-dom": "19.1.1",
+    "@solana/wallet-adapter-react": "0.15.40",
+    "@solana/wallet-adapter-base": "0.9.28"
+  }
+}
