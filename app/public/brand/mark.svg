@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none">
+  <defs>
+    <linearGradient id="pnl-gold" x1="4" y1="2" x2="28" y2="30" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F8E7B0"/>
+      <stop offset="0.48" stop-color="#E0B45A"/>
+      <stop offset="1" stop-color="#A06D28"/>
+    </linearGradient>
+  </defs>
+  <rect width="32" height="32" rx="8" fill="#10141C"/>
+  <rect x="0.75" y="0.75" width="30.5" height="30.5" rx="7.25" stroke="url(#pnl-gold)" stroke-width="1.5"/>
+  <path d="M7.2 23.6h17.6" stroke="url(#pnl-gold)" stroke-width="1.5" stroke-linecap="round"/>
+  <rect x="8" y="15.6" width="3.2" height="8" rx="0.6" fill="url(#pnl-gold)" opacity="0.5"/>
+  <rect x="14.4" y="11" width="3.2" height="12.6" rx="0.6" fill="url(#pnl-gold)" opacity="0.78"/>
+  <rect x="20.8" y="7" width="3.2" height="16.6" rx="0.6" fill="url(#pnl-gold)"/>
+  <path d="M9.6 13.2v2.4M16 8.2v2.8M22.4 4.15v2.85" stroke="url(#pnl-gold)" stroke-width="1.15" stroke-linecap="round"/>
+  <path d="M22.4 2.35l1.2 1.35-1.2 1.35-1.2-1.35z" fill="#F8E7B0"/>
+</svg>

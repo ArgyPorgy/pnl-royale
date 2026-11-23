@@ -106,9 +106,9 @@ export type Feed = {
 
 /** Pinned Pyth Lazer feeds republished on the ER by MagicBlock's pricing oracle. */
 export const FEEDS: Feed[] = [
-  { id: 6, symbol: "SOL", name: "Solana", pda: new PublicKey("ENYwebBThHzmzwPLAQvCucUTsjyfBSZdD9ViXksS4jPu"), exponent: -8, logo: "/tokens/sol.png", tv: "PYTH:SOLUSD" },
-  { id: 1, symbol: "BTC", name: "Bitcoin", pda: new PublicKey("71wtTRDY8Gxgw56bXFt2oc6qeAbTxzStdNiC425Z51sr"), exponent: -8, logo: "/tokens/btc.png", tv: "PYTH:BTCUSD" },
-  { id: 2, symbol: "ETH", name: "Ethereum", pda: new PublicKey("5vaYr1hpv8yrSpu8w3K95x22byYxUJCCNCSYJtqVWPvG"), exponent: -8, logo: "/tokens/eth.png", tv: "PYTH:ETHUSD" },
+  { id: 6, symbol: "SOL", name: "Solana", pda: new PublicKey("ENYwebBThHzmzwPLAQvCucUTsjyfBSZdD9ViXksS4jPu"), exponent: -8, logo: "/tokens/sol.svg", tv: "PYTH:SOLUSD" },
+  { id: 1, symbol: "BTC", name: "Bitcoin", pda: new PublicKey("71wtTRDY8Gxgw56bXFt2oc6qeAbTxzStdNiC425Z51sr"), exponent: -8, logo: "/tokens/btc.svg", tv: "PYTH:BTCUSD" },
+  { id: 2, symbol: "ETH", name: "Ethereum", pda: new PublicKey("5vaYr1hpv8yrSpu8w3K95x22byYxUJCCNCSYJtqVWPvG"), exponent: -8, logo: "/tokens/eth.svg", tv: "PYTH:ETHUSD" },
   { id: 9, symbol: "BONK", name: "Bonk", pda: new PublicKey("4WWpu2fva3uZjmZS95fezYFfoydmYi3PU7ApnqG9cYss"), exponent: -10, logo: "/tokens/bonk.png", tv: "PYTH:BONKUSD" },
   { id: 10, symbol: "WIF", name: "dogwifhat", pda: new PublicKey("Cy6KSY9DCcJ5HiKL3H4ir6XiSC1PczCCJj7LEe9Y8A7x"), exponent: -8, logo: "/tokens/wif.png", tv: "PYTH:WIFUSD" },
   { id: 182, symbol: "FARTCOIN", name: "Fartcoin", pda: new PublicKey("CVFcoSKcJZGMDv9xJWNERXxHjs7KcT3RYBPLCHdG2Jok"), exponent: -8, logo: "/tokens/fartcoin.png", tv: "PYTH:FARTCOINUSD" },

@@ -1,16 +1,17 @@
 "use client";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Eye } from "lucide-react";
+import { ArrowLeft, Eye, Lock } from "lucide-react";
 import { RoomStatus, feedById } from "@/lib/royale/constants";
 import { fmtUsdc } from "@/lib/royale/game";
+import { buildPreview } from "@/lib/ui/preview";
 import { useEr } from "@/hooks/useEr";
 import { useNow, useRoomLive } from "@/hooks/useRoomLive";
 import { TokenStack } from "@/components/brand";
-import { ChartPanel, PlayersTable, RoundProgress, StormCard } from "@/components/room";
+import { ChartPanel, PlayersTable, RoundProgress, StormBanner, StormCard } from "@/components/room";
 import { TeeBadge } from "@/components/TeeBadge";
-import { Button, Card, Pill } from "@/components/ui";
+import { Button, Card, Empty, Pill } from "@/components/ui";
 
 /** Spectator board: public room state only. Positions stay sealed until the round ends. */
 export default function Watch() {
@@ -24,43 +25,70 @@ export default function Watch() {
   }, [params.id]);
   const { er, erError } = useEr(null);
   const live = useRoomLive(roomId, null, er);
-  const now = useNow(live.skew);
+  const nowChain = useNow(live.skew);
   const [asset, setAsset] = useState(0);
-  const room = live.room;
-  if (!room) return <Card><div className="py-10 text-center text-sm text-muted">Loading room…</div></Card>;
+  const [previewKey, setPreviewKey] = useState<string | null>(null);
+  useEffect(() => {
+    if (process.env.NODE_ENV === "production") return;
+    setPreviewKey(new URLSearchParams(window.location.search).get("preview"));
+  }, []);
+  const preview = useMemo(() => buildPreview(previewKey === "spectate" || previewKey === "live" ? "spectate" : previewKey), [previewKey]);
+  const room = preview?.room ?? live.room;
+  const prices = preview ? preview.prices : live.prices;
+  const history = preview ? preview.history : live.history;
+  const now = preview ? Date.now() / 1000 : nowChain;
+  if (roomId === null) return <Empty icon={<Eye size={18} />} title="Invalid spectator link" action={<Back />} />;
+  if (!preview && live.missing) return <Empty icon={<Eye size={18} />} title="Room not found" body="This room doesn't exist on the current network." action={<Back />} />;
+  if (!room) return <Empty loading title="Opening the board" body="Public room state loads from the rollup. Positions stay sealed." />;
   const isLive = room.status === RoomStatus.Live;
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <Link href={`/room/${room.roomId}`} className="inline-flex items-center gap-1.5 text-xs text-muted hover:text-fg">
+          <Link href={`/room/${room.roomId}${preview ? "?preview=live" : ""}`} className="inline-flex items-center gap-1.5 text-xs text-muted hover:text-fg">
             <ArrowLeft size={14} /> Back to room
           </Link>
-          <div className="mt-2 flex items-center gap-3">
-            <TokenStack ids={room.assets} size={26} />
-            <h1 className="text-2xl font-semibold tracking-tight">Spectating room {room.roomId.toString().slice(-6)}</h1>
+          <div className="mt-2 flex flex-wrap items-center gap-3">
+            <TokenStack ids={room.assets} size={28} />
+            <h1 className="display text-3xl">Spectator · {room.roomId.toString().slice(-6)}</h1>
             <Pill tone={isLive ? "down" : "neutral"} dot={isLive}>
               <Eye size={12} /> {isLive ? "Live" : "Replay"}
             </Pill>
           </div>
-          <div className="mt-1.5 text-[13px] text-muted">
-            Pot <span className="num text-fg">${fmtUsdc(room.entryAmount * BigInt(room.seatsFilled))}</span> ·{" "}
-            {room.assets.map((id) => feedById(id)?.symbol).join(" · ")}
+          <div className="mt-2 text-[13px] text-muted">
+            Pot <span className="num text-fg">${fmtUsdc(room.entryAmount * BigInt(room.seatsFilled))}</span> · {room.assets.map((id) => feedById(id)?.symbol).join(" · ")}
           </div>
         </div>
         <TeeBadge er={er} error={erError} />
       </div>
+      <Card bodyClassName="py-3">
+        <div className="flex items-center gap-2 text-sm text-muted">
+          <Lock size={14} className="text-accent" />
+          Positions are sealed. This board shows who is alive, the public rank at each cut, and the storm in force.
+        </div>
+      </Card>
+      {isLive && <StormBanner room={room} now={now} />}
       {isLive && <RoundProgress room={room} now={now} />}
       <div className="grid gap-5 xl:grid-cols-[1fr_400px]">
-        <ChartPanel room={room} prices={live.prices} asset={asset} onAsset={setAsset} />
+        <ChartPanel room={room} prices={prices} history={history} asset={asset} onAsset={setAsset} />
         <div className="space-y-5">
           <PlayersTable room={room} me={null} payouts={room.status >= RoomStatus.Ended} />
           {isLive && <StormCard room={room} now={now} />}
-          <Link href={`/room/${room.roomId}`}>
+          <Link href={`/room/${room.roomId}${preview ? "?preview=live" : ""}`}>
             <Button className="w-full">Open the room</Button>
           </Link>
         </div>
       </div>
     </div>
+  );
+}
+
+function Back() {
+  return (
+    <Link href="/">
+      <Button size="sm">
+        <ArrowLeft size={14} /> All rooms
+      </Button>
+    </Link>
   );
 }

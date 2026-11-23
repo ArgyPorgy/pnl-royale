@@ -36,8 +36,10 @@ import { useNow, useRoomLive } from "@/hooks/useRoomLive";
 import { TeeBadge } from "@/components/TeeBadge";
 import { PlayInstantly } from "@/components/PlayInstantly";
 import { Identicon, TokenStack } from "@/components/brand";
-import { Activity, ChartPanel, OrderTicket, PlayersTable, PositionCard, RoundProgress, StormCard, mmss, type TxItem } from "@/components/room";
-import { Button, Card, Pill, cx } from "@/components/ui";
+import { Activity, ChartPanel, OrderTicket, PlayersTable, PositionCard, RoundProgress, StormBanner, StormCard, mmss, type TxItem } from "@/components/room";
+import { Button, Card, Empty, Pill, cx } from "@/components/ui";
+import { LogoMark } from "@/components/brand";
+import { buildPreview } from "@/lib/ui/preview";
 
 const STATUS: Record<number, { label: string; tone: "up" | "down" | "neutral" | "warn" }> = {
   [RoomStatus.Open]: { label: "Open", tone: "up" },
@@ -64,10 +66,24 @@ export default function RoomPage() {
   const { session, valid, fresh, commit } = useSession(me);
   const { er, erError } = useEr(valid && session ? session.kp : null);
   const live = useRoomLive(roomId, me, er);
-  const now = useNow(live.skew);
+  const nowChain = useNow(live.skew);
   const room = live.room;
   const seat = room && me ? room.players.findIndex((p) => p.equals(me)) : -1;
   const seated = seat >= 0;
+  const [previewKey, setPreviewKey] = useState<string | null>(null);
+  useEffect(() => {
+    if (process.env.NODE_ENV === "production") return;
+    setPreviewKey(new URLSearchParams(window.location.search).get("preview"));
+  }, []);
+  const preview = useMemo(() => buildPreview(previewKey), [previewKey]);
+  const view = preview?.room ?? room;
+  const viewMe = preview ? preview.me : me;
+  const viewSeat = view && viewMe ? view.players.findIndex((p) => p.equals(viewMe)) : -1;
+  const viewDelegated = preview ? preview.delegated : live.delegated;
+  const prices = preview ? preview.prices : live.prices;
+  const position = preview ? preview.position : live.position;
+  const history = preview ? preview.history : live.history;
+  const now = preview ? Date.now() / 1000 : nowChain;
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ text: string; tone: "info" | "error" } | null>(null);
   const [txs, setTxs] = useState<TxItem[]>([]);
@@ -77,10 +93,10 @@ export default function RoomPage() {
   const fail = (e: unknown) => setMsg({ text: readableError(e), tone: "error" });
 
   useEffect(() => {
-    if (live.position && live.position.side !== 0) setAsset(live.position.assetIdx);
+    if (position && position.side !== 0) setAsset(position.assetIdx);
     // follow the open position's market once when it loads
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [live.position?.assetIdx, live.position?.side]);
+  }, [position?.assetIdx, position?.side]);
 
   // ---------------- L1 wallet transactions (join / start / settle) ----------------
   const sendL1 = useCallback(
@@ -99,7 +115,10 @@ export default function RoomPage() {
     [wallet, connection],
   );
 
+  const previewNote = () => info("This is a local preview of the room. Create one from the lobby to play it.");
+
   const join = async () => {
+    if (preview) return previewNote();
     if (!me) return setVisible(true);
     if (!room) return;
     setBusy(true);
@@ -132,6 +151,7 @@ export default function RoomPage() {
   };
 
   const enableSession = async () => {
+    if (preview) return previewNote();
     if (!me) return;
     setBusy(true);
     try {
@@ -148,6 +168,7 @@ export default function RoomPage() {
   };
 
   const start = async () => {
+    if (preview) return previewNote();
     if (!me) return setVisible(true);
     if (!room) return;
     setBusy(true);
@@ -162,6 +183,7 @@ export default function RoomPage() {
   };
 
   const settle = async () => {
+    if (preview) return previewNote();
     if (!me || !room) return setVisible(true);
     setBusy(true);
     try {
@@ -197,6 +219,7 @@ export default function RoomPage() {
   );
 
   const trade = async (side: -1 | 0 | 1, lev: number, a: number) => {
+    if (preview) return previewNote();
     if (!room || !me || !session) return;
     setBusy(true);
     try {
@@ -212,7 +235,7 @@ export default function RoomPage() {
   // ---------------- Any seated client keeps the game moving (time-gated + idempotent onchain) ----------------
   const auto = useRef(0);
   useEffect(() => {
-    if (!room || !er || !session || !seated) return;
+    if (preview || !room || !er || !session || !seated) return;
     if (Date.now() - auto.current < 3000) return;
     const go = async (label: string, ixs: TransactionInstruction[]) => {
       auto.current = Date.now();
@@ -242,16 +265,17 @@ export default function RoomPage() {
     } else if (live.delegated && room.status === RoomStatus.Ended) {
       ixFinalizeRound(session.kp.publicKey, room).then((ix) => go("Commit results to Solana", [cuLimit(400_000), ix]));
     }
-  }, [room, er, session, seated, live.delegated, now, er_]);
+  }, [room, er, session, seated, live.delegated, now, er_, preview]);
 
   if (roomId === null) return <EmptyState title="Invalid room link" />;
-  if (live.missing) return <EmptyState title="Room not found" body="This room doesn't exist on the current network." />;
-  if (!room) return <EmptyState title="Loading room…" />;
+  if (!preview && live.missing) return <EmptyState title="Room not found" body="This room doesn't exist on the current network." />;
+  if (!view) return <EmptyState title="Opening the room" body="Reading the account from Solana." loading />;
 
-  const status = STATUS[room.status];
-  const pot = room.entryAmount * BigInt(room.seatsFilled);
-  const ended = room.status === RoomStatus.Ended || room.status === RoomStatus.Settled;
-  const isLive = room.status === RoomStatus.Live;
+  const status = STATUS[view.status];
+  const pot = view.entryAmount * BigInt(view.seatsFilled);
+  const ended = view.status === RoomStatus.Ended || view.status === RoomStatus.Settled;
+  const isLive = view.status === RoomStatus.Live;
+  const playing = viewSeat >= 0;
 
   return (
     <div className="space-y-5">
@@ -261,32 +285,32 @@ export default function RoomPage() {
           <Link href="/" className="inline-flex items-center gap-1.5 text-xs text-muted hover:text-fg">
             <ArrowLeft size={14} /> All rooms
           </Link>
-          <div className="mt-2 flex items-center gap-3">
-            <TokenStack ids={room.assets} size={26} />
-            <h1 className="text-2xl font-semibold tracking-tight">Room {room.roomId.toString().slice(-6)}</h1>
+          <div className="mt-2 flex flex-wrap items-center gap-3">
+            <TokenStack ids={view.assets} size={28} />
+            <h1 className="display text-3xl">Room {view.roomId.toString().slice(-6)}</h1>
             <Pill tone={status.tone} dot={isLive}>
               {status.label}
             </Pill>
           </div>
-          <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-[13px] text-muted">
+          <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[13px] text-muted">
             <span>
-              Entry <span className="num text-fg">${fmtUsdc(room.entryAmount)}</span>
+              Entry <span className="num text-fg">${fmtUsdc(view.entryAmount)}</span>
             </span>
             <span>
               Pot <span className="num text-fg">${fmtUsdc(pot)}</span>
             </span>
-            <span>{room.assets.map((id) => feedById(id)?.symbol).join(" · ")}</span>
-            <span>Cut every {room.intervalSecs}s</span>
+            <span>{view.assets.map((id) => feedById(id)?.symbol).join(" · ")}</span>
+            <span>Cut every {view.intervalSecs}s</span>
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <TeeBadge er={er} error={erError} />
-          <Link href={`/watch/${room.roomId}`}>
+          <Link href={`/watch/${view.roomId}${preview ? "?preview=spectate" : ""}`}>
             <Button size="sm">
               <Eye size={14} /> Spectate
             </Button>
           </Link>
-          <a href={explorerAccount(room.address.toBase58())} target="_blank" rel="noreferrer">
+          <a href={explorerAccount(view.address.toBase58())} target="_blank" rel="noreferrer">
             <Button size="sm">
               <ExternalLink size={14} /> Solscan
             </Button>
@@ -306,27 +330,28 @@ export default function RoomPage() {
         </div>
       )}
 
-      {(room.status === RoomStatus.Open || room.status === RoomStatus.Starting || isLive) && (
+      {(view.status === RoomStatus.Open || view.status === RoomStatus.Starting || isLive) && (
         // One tree for pre-round and live so the chart stays mounted when the round starts.
         <>
-          {isLive ? <RoundProgress room={room} now={now} /> : null}
+          {isLive ? <StormBanner room={view} now={now} /> : null}
+          {isLive ? <RoundProgress room={view} now={now} /> : null}
           <div className="grid gap-5 xl:grid-cols-[1fr_380px]">
             <div className="min-w-0 space-y-5">
-              <ChartPanel room={room} prices={live.prices} asset={asset} onAsset={setAsset} height={isLive ? 460 : 420} />
-              {isLive ? <PlayersTable room={room} me={me} /> : null}
-              {isLive && seated ? <Activity items={txs} token={er?.token ?? null} /> : null}
+              <ChartPanel room={view} prices={prices} history={history} asset={asset} onAsset={setAsset} />
+              {isLive ? <PlayersTable room={view} me={viewMe} /> : null}
+              {isLive && playing ? <Activity items={txs} token={er?.token ?? null} /> : null}
             </div>
             <div className="space-y-5">
               {!isLive ? (
                 <>
-                  <SeatsCard room={room} me={me} now={now} busy={busy} seated={seated} onJoin={join} onStart={start} delegated={live.delegated} />
-                  <PrizeCard room={room} />
+                  <SeatsCard room={view} me={viewMe} now={now} busy={busy} seated={playing} onJoin={join} onStart={start} delegated={viewDelegated} />
+                  <PrizeCard room={view} />
                 </>
-              ) : seated ? (
+              ) : playing ? (
                 <>
-                  <PositionCard room={room} position={live.position} prices={live.prices} now={now} rank={room.publicRank[seat]} />
-                  {valid ? (
-                    <OrderTicket room={room} position={live.position} asset={asset} now={now} busy={busy} onTrade={trade} />
+                  <PositionCard room={view} position={position} prices={prices} now={now} rank={view.publicRank[viewSeat] ?? 0} />
+                  {preview || valid ? (
+                    <OrderTicket room={view} position={position} asset={asset} now={now} busy={busy} onTrade={trade} />
                   ) : (
                     <Card title="Trade">
                       <p className="text-[13px] text-muted">This device doesn&apos;t have your session key. Enable one-tap trading to trade without wallet popups.</p>
@@ -335,7 +360,7 @@ export default function RoomPage() {
                       </Button>
                     </Card>
                   )}
-                  <StormCard room={room} now={now} />
+                  <StormCard room={view} now={now} />
                 </>
               ) : (
                 <>
@@ -343,8 +368,11 @@ export default function RoomPage() {
                     <p className="text-[13px] leading-relaxed text-muted">
                       This round is in progress. Positions are sealed inside the TEE, so only rankings at each cut are public.
                     </p>
+                    <Link href={`/watch/${view.roomId}`} className="mt-3 inline-flex">
+                      <Button size="sm">Open the spectator board</Button>
+                    </Link>
                   </Card>
-                  <StormCard room={room} now={now} />
+                  <StormCard room={view} now={now} />
                 </>
               )}
             </div>
@@ -354,15 +382,15 @@ export default function RoomPage() {
 
       {ended && (
         <div className="grid gap-5 xl:grid-cols-[380px_1fr]">
-          <ResultCard room={room} seat={seat} delegated={live.delegated} busy={busy} onSettle={settle} />
+          <ResultCard room={view} seat={viewSeat} delegated={viewDelegated} busy={busy} onSettle={settle} />
           <div className="space-y-5">
-            <PlayersTable room={room} me={me} payouts />
-            {seated && txs.length > 0 && <Activity items={txs} token={er?.token ?? null} />}
+            <PlayersTable room={view} me={viewMe} payouts />
+            {playing && txs.length > 0 && <Activity items={txs} token={er?.token ?? null} />}
           </div>
         </div>
       )}
 
-      {room.status === RoomStatus.Cancelled && (
+      {view.status === RoomStatus.Cancelled && (
         <Card title="Room cancelled">
           <p className="text-[13px] text-muted">This room didn&apos;t fill in time. Every entry is refundable in full, and the relayer sends refunds automatically.</p>
         </Card>
@@ -371,17 +399,21 @@ export default function RoomPage() {
   );
 }
 
-function EmptyState({ title, body }: { title: string; body?: string }) {
+function EmptyState({ title, body, loading }: { title: string; body?: string; loading?: boolean }) {
   return (
-    <div className="grid place-items-center rounded-[var(--radius-card)] border border-border bg-surface px-6 py-20 text-center">
-      <div className="text-sm text-fg">{title}</div>
-      {body && <div className="mt-1 text-[13px] text-muted">{body}</div>}
-      <Link href="/" className="mt-4">
-        <Button size="sm">
-          <ArrowLeft size={14} /> Back to rooms
-        </Button>
-      </Link>
-    </div>
+    <Empty
+      loading={loading}
+      icon={<LogoMark size={26} />}
+      title={title}
+      body={body}
+      action={
+        <Link href="/">
+          <Button size="sm">
+            <ArrowLeft size={14} /> Back to rooms
+          </Button>
+        </Link>
+      }
+    />
   );
 }
 
@@ -430,8 +462,8 @@ function SeatsCard({
             <div
               key={i}
               className={cx(
-                "flex h-14 flex-col items-center justify-center gap-1 rounded-[10px] border text-[11px]",
-                p ? (mine ? "border-accent/50 bg-accent/10" : "border-border bg-surface-2") : "border-dashed border-border text-faint",
+                "flex h-16 flex-col items-center justify-center gap-1 rounded-xl border text-[11px]",
+                p ? (mine ? "border-accent/60 bg-accent/10" : "border-border bg-surface-2") : "border-dashed border-border text-faint",
               )}
               title={p?.toBase58()}
             >
@@ -489,7 +521,7 @@ function PrizeCard({ room }: { room: RoomState }) {
       <div className="flex items-end justify-between">
         <div>
           <div className="text-xs text-muted">Pot so far</div>
-          <div className="num mt-1 text-2xl text-fg">${pot.toFixed(2)}</div>
+          <div className="display mt-1 text-4xl text-fg">${pot.toFixed(2)}</div>
         </div>
         <div className="text-right text-xs text-faint">
           Up to ${full.toFixed(2)} when full
@@ -542,13 +574,13 @@ function ResultCard({
   return (
     <Card>
       <div className="flex flex-col items-center py-4 text-center">
-        <span className={cx("grid h-14 w-14 place-items-center rounded-2xl", won ? "bg-accent/15 text-[#a99fff]" : "bg-surface-2 text-faint")}>
-          <Trophy size={26} strokeWidth={1.75} />
+        <span className={cx("grid h-16 w-16 place-items-center rounded-2xl", won ? "bg-accent/15 text-accent" : "bg-surface-2 text-faint")}>
+          <Trophy size={28} strokeWidth={1.6} />
         </span>
         {seat >= 0 ? (
           <>
-            <div className="mt-4 text-xs text-muted">{won ? "You finished" : "Eliminated"}</div>
-            <div className="mt-1 text-3xl font-semibold tracking-tight">
+            <div className="kicker mt-4">{won ? "You finished" : "Eliminated"}</div>
+            <div className="display mt-1 text-5xl">
               #{place} <span className="text-lg font-normal text-faint">of {room.seatsFilled}</span>
             </div>
             {won ? (
@@ -564,7 +596,7 @@ function ResultCard({
           </>
         ) : (
           <>
-            <div className="mt-4 text-xl font-semibold tracking-tight">Round complete</div>
+            <div className="display mt-4 text-3xl">Round complete</div>
             <div className="mt-1 text-xs text-faint">{room.status === RoomStatus.Settled ? "Paid out on Solana" : "Awaiting payout"}</div>
           </>
         )}
