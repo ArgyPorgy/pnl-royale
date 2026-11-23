@@ -32,8 +32,8 @@ export function HeroArt() {
   const y = (v: number) => 36 + ((hi - v) / (hi - lo)) * (H - 150);
   const cw = (W - 72) / n;
   const lines = [
-    { pts: walk(11, n, 148, 8, 1.15), color: "#e0b45a", name: "You" },
-    { pts: walk(29, n, 146, 8, 0.15), color: "#c9d0dc", name: "Seat 4" },
+    { pts: walk(11, n, 148, 8, 1.15), color: "#22d3ee", name: "You" },
+    { pts: walk(29, n, 146, 8, 0.15), color: "#a78bfa", name: "Seat 4" },
     { pts: walk(41, n, 150, 8, -2.4), color: "#ff4d6d", name: "Seat 7" },
   ];
   const ly = (v: number) => 250 + (150 - v) * 1.15;
@@ -41,8 +41,8 @@ export function HeroArt() {
   const path = (pts: number[]) => pts.map((v, i) => `${i ? "L" : "M"}${36 + i * cw + cw / 2},${Math.min(ly(v), H - 28).toFixed(1)}`).join(" ");
 
   return (
-    <div className="relative overflow-hidden rounded-[22px] border border-border bg-[#0c1018] shadow-[0_30px_80px_-40px_rgba(224,180,90,0.45)]">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_80%_0%,rgba(224,180,90,0.16),transparent_55%)]" />
+    <div className="relative overflow-hidden rounded-[22px] border border-border bg-[#0c1018] shadow-[0_30px_80px_-40px_rgba(34,211,238,0.35)]">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_80%_0%,rgba(34,211,238,0.16),transparent_55%)]" />
       <div className="relative flex items-center justify-between border-b border-border px-4 py-3">
         <div className="flex items-center gap-2">
           <span className="pulse-dot h-1.5 w-1.5 rounded-full bg-down" />

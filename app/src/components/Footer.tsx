@@ -10,7 +10,7 @@ export function Footer() {
           <div className="flex items-center gap-2.5">
             <LogoMark size={26} />
             <span className="display text-lg">
-              PnL <span className="italic text-accent">Royale</span>
+              PnL <span className="text-accent">Royale</span>
             </span>
           </div>
           <p className="mt-3 max-w-sm text-sm leading-relaxed text-muted">

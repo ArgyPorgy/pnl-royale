@@ -123,13 +123,13 @@ function RatingRing({ elo, ring }: { elo: number; ring: number }) {
           cy="42"
           r={r}
           fill="none"
-          stroke="#e0b45a"
+          stroke="#22d3ee"
           strokeWidth="6"
           strokeLinecap="round"
           strokeDasharray={`${c * ring} ${c}`}
           transform="rotate(-90 42 42)"
         />
-        <text x="42" y="46" textAnchor="middle" fill="#f4efe4" fontSize="14" fontFamily="var(--font-jetbrains), ui-monospace, monospace">
+        <text x="42" y="46" textAnchor="middle" fill="#e7eef6" fontSize="14" fontFamily="var(--font-jetbrains), ui-monospace, monospace">
           {elo}
         </text>
       </svg>

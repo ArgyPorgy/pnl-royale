@@ -8,7 +8,7 @@ type Variant = "primary" | "secondary" | "ghost" | "up" | "down";
 type Size = "sm" | "md" | "lg";
 
 const VARIANT: Record<Variant, string> = {
-  primary: "bg-accent text-[#1a1408] hover:bg-accent-strong shadow-[inset_0_1px_0_rgba(255,255,255,0.35)]",
+  primary: "bg-accent text-[#041318] hover:bg-accent-strong shadow-[inset_0_1px_0_rgba(255,255,255,0.35)]",
   secondary: "bg-surface-2 text-fg border border-border hover:bg-surface-3 hover:border-border-strong",
   ghost: "text-muted hover:text-fg hover:bg-surface-2",
   up: "bg-up text-[#04140c] hover:bg-up-strong",
@@ -112,7 +112,7 @@ export function Segmented<T extends string | number>({
           className={cx(
             "flex-1 whitespace-nowrap rounded-lg font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-35",
             size === "sm" ? "h-7 px-2.5 text-xs" : "h-9 px-3 text-[13px]",
-            o.value === value ? "bg-surface-3 text-fg shadow-[0_0_0_1px_rgba(224,180,90,0.35)]" : "text-muted hover:text-fg",
+            o.value === value ? "bg-surface-3 text-fg shadow-[0_0_0_1px_rgba(34,211,238,0.55)]" : "text-muted hover:text-fg",
           )}
         >
           {o.label}

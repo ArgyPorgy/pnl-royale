@@ -176,7 +176,7 @@ export function ChartPanel({
               <button
                 key={id}
                 onClick={() => onAsset(i)}
-                className={cx("flex items-center gap-2.5 rounded-xl px-3 py-1.5 text-left transition-colors", i === asset ? "bg-surface-3 shadow-[0_0_0_1px_rgba(224,180,90,0.35)]" : "hover:bg-surface-2")}
+                className={cx("flex items-center gap-2.5 rounded-xl px-3 py-1.5 text-left transition-colors", i === asset ? "bg-surface-3 shadow-[0_0_0_1px_rgba(34,211,238,0.55)]" : "hover:bg-surface-2")}
               >
                 <TokenIcon id={id} size={22} />
                 <span>
@@ -387,7 +387,7 @@ export function OrderTicket({
       <div className={cx("mt-4", side === 0 && "opacity-40")}>
         <div className="mb-1.5 flex items-center justify-between text-xs">
           <span className="text-muted">Leverage</span>
-          {surge && <span className="font-semibold text-accent">Surge · 25x open</span>}
+          {surge && <span className="font-semibold text-violet">Surge · 25x open</span>}
         </div>
         <Segmented<number> className="w-full" value={lev} onChange={setLev} options={levels.map((l) => ({ value: l, label: `${l}x`, disabled: side === 0 }))} />
       </div>

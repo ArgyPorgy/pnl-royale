@@ -1,12 +1,12 @@
 import type { Metadata, Viewport } from "next";
-import { Fraunces, JetBrains_Mono, Outfit } from "next/font/google";
+import { JetBrains_Mono, Outfit, Space_Grotesk } from "next/font/google";
 import "./globals.css";
 import { Providers } from "./providers";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 
 const outfit = Outfit({ subsets: ["latin"], variable: "--font-outfit" });
-const fraunces = Fraunces({ subsets: ["latin"], variable: "--font-fraunces" });
+const display = Space_Grotesk({ subsets: ["latin"], variable: "--font-display-face" });
 const jetbrains = JetBrains_Mono({ subsets: ["latin"], variable: "--font-jetbrains" });
 
 const description =
@@ -41,7 +41,7 @@ export const viewport: Viewport = { themeColor: "#07080c", width: "device-width"
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${outfit.variable} ${fraunces.variable} ${jetbrains.variable}`}>
+    <html lang="en" className={`${outfit.variable} ${display.variable} ${jetbrains.variable}`}>
       <body className="font-sans">
         <Providers>
           <Header />

@@ -32,7 +32,7 @@ export default function Lobby() {
           </Pill>
           <h1 className="display mt-5 text-[42px] leading-[0.96] sm:text-[64px]">
             The battle royale
-            <span className="mt-1 block italic text-accent">for traders.</span>
+            <span className="mt-1 block text-accent">for traders.</span>
           </h1>
           <p className="mt-5 max-w-xl text-[16px] leading-relaxed text-muted">
             Four to sixteen traders stake USDC, take hidden positions on live prices, and outlast a field that gets smaller every minute. The last traders standing take the pot, paid on Solana.
@@ -467,7 +467,7 @@ function HowItWorks() {
 function StormShowcase() {
   const storms = [StormKind.Spotlight, StormKind.Surge, StormKind.Freeze, StormKind.ZoneShrink];
   return (
-    <section className="overflow-hidden rounded-[22px] border border-border bg-[linear-gradient(180deg,#16130c_0%,#10141c_42%)]">
+    <section className="overflow-hidden rounded-[22px] border border-violet/25 bg-[linear-gradient(180deg,#140e22_0%,#10141c_46%)]">
       <div className="px-5 py-8 sm:px-8">
         <div className="kicker">Storms</div>
         <h2 className="display mt-2 max-w-xl text-3xl sm:text-4xl">The rules change in public.</h2>
@@ -476,7 +476,7 @@ function StormShowcase() {
         </p>
         <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {storms.map((k) => (
-            <div key={k} className="rounded-2xl border border-accent/20 bg-black/25 p-4">
+            <div key={k} className="rounded-2xl border border-violet/30 bg-black/25 p-4">
               <div className="text-sm font-semibold text-accent">{STORM_COPY[k].title}</div>
               <p className="mt-2 text-[13px] leading-relaxed text-muted">{STORM_COPY[k].blurb("SOL", "Long")}</p>
             </div>
