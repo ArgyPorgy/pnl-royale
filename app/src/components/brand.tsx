@@ -12,9 +12,9 @@ export function LogoMark({ size = 28 }: { size?: number }) {
     <svg width={size} height={size} viewBox="0 0 32 32" aria-hidden>
       <defs>
         <linearGradient id={grad} x1="4" y1="2" x2="28" y2="30" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#67E8F9" />
-          <stop offset="0.45" stopColor="#22D3EE" />
-          <stop offset="1" stopColor="#8B5CF6" />
+          <stop stopColor="#C98A7E" />
+          <stop offset="0.42" stopColor="#7B6AA8" />
+          <stop offset="1" stopColor="#2A2350" />
         </linearGradient>
       </defs>
       <rect width="32" height="32" rx="8" fill="#10141C" />
@@ -24,7 +24,7 @@ export function LogoMark({ size = 28 }: { size?: number }) {
       <rect x="14.4" y="11" width="3.2" height="12.6" rx="0.6" fill={`url(#${grad})`} opacity="0.78" />
       <rect x="20.8" y="7" width="3.2" height="16.6" rx="0.6" fill={`url(#${grad})`} />
       <path d="M9.6 13.2v2.4M16 8.2v2.8M22.4 4.15v2.85" stroke={`url(#${grad})`} strokeWidth="1.15" strokeLinecap="round" />
-      <path d="M22.4 2.35l1.2 1.35-1.2 1.35-1.2-1.35z" fill="#67E8F9" />
+      <path d="M22.4 2.35l1.2 1.35-1.2 1.35-1.2-1.35z" fill="#E6F77A" />
     </svg>
   );
 }
@@ -35,7 +35,7 @@ export function Logo({ compact = false }: { compact?: boolean }) {
       <LogoMark size={compact ? 26 : 30} />
       <span className="leading-none">
         <span className="display block text-[17px] text-fg">
-          PnL <span className="text-accent">Royale</span>
+          PnL Royale
         </span>
       </span>
     </span>

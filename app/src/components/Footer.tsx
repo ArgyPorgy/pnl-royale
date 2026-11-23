@@ -1,5 +1,5 @@
 "use client";
-import { ER_RPC, PROGRAM_ID, explorerAccount } from "@/lib/royale/constants";
+import { CLUSTER, ER_RPC, PROGRAM_ID, explorerAccount } from "@/lib/royale/constants";
 import { LogoMark, PartnerLockup, WALLETS } from "./brand";
 
 export function Footer() {
@@ -10,7 +10,7 @@ export function Footer() {
           <div className="flex items-center gap-2.5">
             <LogoMark size={26} />
             <span className="display text-lg">
-              PnL <span className="text-accent">Royale</span>
+              PnL Royale
             </span>
           </div>
           <p className="mt-3 max-w-sm text-sm leading-relaxed text-muted">
@@ -40,7 +40,12 @@ export function Footer() {
                 Program {PROGRAM_ID.toBase58().slice(0, 4)}…{PROGRAM_ID.toBase58().slice(-4)}
               </a>
             </li>
-            <li>Rollup {new URL(ER_RPC).host}</li>
+            <li>
+              Rollup {new URL(ER_RPC).host}
+              {CLUSTER !== "mainnet" && (
+                <span className="mt-1 block text-xs text-faint">Devnet rollup link. Switch this to mainnet at deploy.</span>
+              )}
+            </li>
             <li>
               <a className="hover:text-fg" href="https://github.com/ArgyPorgy/pnl-royale" target="_blank" rel="noreferrer">
                 Source on GitHub

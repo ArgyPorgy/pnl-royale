@@ -43,7 +43,7 @@ export function RoundProgress({ room, now }: { room: RoomState; now: number }) {
       <div className="flex flex-wrap items-end gap-x-10 gap-y-4 px-5 py-4">
         <div>
           <div className="kicker">{final ? "Final bell" : `Cut ${room.nextCheckpoint} of 5`}</div>
-          <div className={cx("num mt-1 text-[40px] leading-none", urgent ? "cut-urgent text-down" : "text-fg")}>{mmss(left)}</div>
+          <div className={cx("balance mt-1 text-[44px] leading-none", urgent ? "cut-urgent text-down" : "text-white")}>{mmss(left)}</div>
         </div>
         <div>
           <div className="text-xs text-muted">Alive</div>
@@ -82,7 +82,7 @@ export function RoundProgress({ room, now }: { room: RoomState; now: number }) {
               <div className="h-1.5 overflow-hidden rounded-full bg-surface-3">
                 <div className={cx("h-full rounded-full", i === cur ? "bg-accent" : "bg-faint/50")} style={{ width: `${pct}%` }} />
               </div>
-              <div className={cx("mt-2 flex items-center gap-1.5 truncate text-[11px]", storm.kind !== StormKind.None ? "text-accent" : "text-faint")}>
+              <div className={cx("mt-2 flex items-center gap-1.5 truncate text-[12px]", storm.kind !== StormKind.None ? "text-white" : "text-faint")}>
                 <Icon size={12} strokeWidth={2} className="shrink-0" />
                 <span className="hidden truncate sm:inline">{label}</span>
               </div>
@@ -100,8 +100,8 @@ export function StormBanner({ room, now }: { room: RoomState; now: number }) {
   if (storm.kind === StormKind.None) return null;
   const Icon = STORM_ICON[storm.kind];
   return (
-    <div className={cx("fade-up flex items-start gap-3 overflow-hidden rounded-2xl border border-accent/30 px-4 py-3", STORM_ANIM[storm.kind])}>
-      <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-black/30 text-accent">
+    <div className={cx("mesh fade-up flex items-start gap-3 overflow-hidden rounded-[24px] border border-white/10 px-4 py-3", STORM_ANIM[storm.kind])}>
+      <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-black/30 text-white">
         <Icon size={18} />
       </span>
       <div>
@@ -128,8 +128,8 @@ export function StormCard({ room, now }: { room: RoomState; now: number }) {
         </span>
       }
     >
-      <div className={cx("flex items-start gap-3 rounded-xl p-2", active && STORM_ANIM[storm.kind])}>
-        <span className={cx("grid h-10 w-10 shrink-0 place-items-center rounded-xl", active ? "bg-accent/15 text-accent" : "bg-surface-2 text-faint")}>
+      <div className={cx("flex items-start gap-3 rounded-[20px] p-2", active && "mesh")}>
+        <span className={cx("grid h-10 w-10 shrink-0 place-items-center rounded-full", active ? "bg-white/10 text-white" : "bg-surface-2 text-faint")}>
           <Icon size={18} strokeWidth={1.75} />
         </span>
         <div>
@@ -176,7 +176,7 @@ export function ChartPanel({
               <button
                 key={id}
                 onClick={() => onAsset(i)}
-                className={cx("flex items-center gap-2.5 rounded-xl px-3 py-1.5 text-left transition-colors", i === asset ? "bg-surface-3 shadow-[0_0_0_1px_rgba(34,211,238,0.55)]" : "hover:bg-surface-2")}
+                className={cx("flex items-center gap-2.5 rounded-full px-3 py-1.5 text-left transition-colors", i === asset ? "bg-white/10 text-white" : "hover:bg-white/5")}
               >
                 <TokenIcon id={id} size={22} />
                 <span>
@@ -279,10 +279,10 @@ export function PositionCard({
         </span>
       }
     >
-      <div className="flex items-end justify-between">
+      <div className="mesh -mx-4 -mt-4 mb-4 flex items-end justify-between rounded-t-[20px] px-4 pb-4 pt-5">
         <div>
-          <div className="text-xs text-muted">Equity</div>
-          <div className={cx("num mt-1 text-[32px] leading-none", dead ? "text-faint" : "text-fg")}>{fmtChips(eq)}</div>
+          <div className="text-xs text-white/70">Equity</div>
+          <div className={cx("balance mt-1 text-[40px] leading-none", dead ? "text-white/40" : "text-white")}>{fmtChips(eq)}</div>
         </div>
         <div className="text-right">
           <div className={cx("num text-sm font-semibold", total >= 0 ? "text-up" : "text-down")}>
@@ -387,7 +387,7 @@ export function OrderTicket({
       <div className={cx("mt-4", side === 0 && "opacity-40")}>
         <div className="mb-1.5 flex items-center justify-between text-xs">
           <span className="text-muted">Leverage</span>
-          {surge && <span className="font-semibold text-violet">Surge · 25x open</span>}
+          {surge && <span className="font-medium text-white">Surge · 25x open</span>}
         </div>
         <Segmented<number> className="w-full" value={lev} onChange={setLev} options={levels.map((l) => ({ value: l, label: `${l}x`, disabled: side === 0 }))} />
       </div>
@@ -426,8 +426,8 @@ export function OrderTicket({
   );
 }
 
-const COLS = "grid-cols-[28px_1fr_auto] sm:grid-cols-[44px_1fr_110px_110px]";
-const COLS_PAY = "grid-cols-[28px_1fr_auto_auto] sm:grid-cols-[44px_1fr_110px_110px_90px]";
+const COLS = "grid-cols-[28px_minmax(0,1fr)_auto] sm:grid-cols-[36px_minmax(0,1fr)_92px_88px]";
+const COLS_PAY = "grid-cols-[28px_minmax(0,1fr)_auto_auto] sm:grid-cols-[36px_minmax(0,1fr)_92px_88px_72px]";
 
 export function PlayersTable({ room, me, payouts = false }: { room: RoomState; me: PublicKey | null; payouts?: boolean }) {
   const pot = room.entryAmount * BigInt(room.seatsFilled);
@@ -444,7 +444,7 @@ export function PlayersTable({ room, me, payouts = false }: { room: RoomState; m
     });
   return (
     <Card title={ended ? "Final standings" : `Leaderboard · ${room.status >= 2 ? `${room.aliveCount} alive` : `${room.seatsFilled} joined`}`} bodyClassName="p-0">
-      <div className={cx("grid gap-3 border-b border-border px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-faint", payouts ? COLS_PAY : COLS)}>
+      <div className={cx("grid gap-3 border-b border-border px-4 py-2 text-[13px] font-medium text-faint", payouts ? COLS_PAY : COLS)}>
         <span>#</span>
         <span>Player</span>
         <span className="hidden sm:block">Status</span>
@@ -469,8 +469,8 @@ export function PlayersTable({ room, me, payouts = false }: { room: RoomState; m
           );
           const shown = ended || out ? place || "—" : rank || "—";
           return (
-            <li key={p.toBase58()} className={cx("grid items-center gap-3 border-b border-border px-4 py-2.5 text-[13px] last:border-b-0", payouts ? COLS_PAY : COLS, mine && "bg-accent/[0.07]")}>
-              <span className={cx("num", place === 1 ? "text-accent" : finalist ? "text-fg" : "text-faint")}>{shown}</span>
+            <li key={p.toBase58()} className={cx("grid items-center gap-3 border-b border-border px-4 py-2.5 text-[13px] last:border-b-0", payouts ? COLS_PAY : COLS, mine && "bg-white/[0.04]")}>
+              <span className={cx("num", place === 1 ? "text-white" : finalist ? "text-fg" : "text-faint")}>{shown}</span>
               <a href={explorerAccount(p.toBase58())} target="_blank" rel="noreferrer" className="flex min-w-0 items-center gap-2.5 hover:text-fg">
                 <Identicon pubkey={p} size={22} />
                 <span className="min-w-0">

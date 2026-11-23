@@ -25,14 +25,14 @@ export default function Lobby() {
   const createRef = useRef<HTMLDivElement>(null);
   return (
     <div className="space-y-16 sm:space-y-20">
-      <section className="grid items-center gap-10 lg:grid-cols-[1.05fr_0.95fr]">
+      <section className="mesh grid items-center gap-10 overflow-hidden rounded-[28px] px-6 py-8 sm:px-10 sm:py-12 lg:grid-cols-[1.05fr_0.95fr]">
         <div className="fade-up">
-          <Pill tone="accent">
+          <Pill>
             Solana {IS_DEVNET ? "devnet" : "mainnet"} · MagicBlock {IS_TEE ? "private rollup" : "ephemeral rollup"}
           </Pill>
-          <h1 className="display mt-5 text-[42px] leading-[0.96] sm:text-[64px]">
+          <h1 className="display mt-5 text-[42px] leading-[0.96] text-white sm:text-[64px]">
             The battle royale
-            <span className="mt-1 block text-accent">for traders.</span>
+            <span className="mt-1 block">for traders.</span>
           </h1>
           <p className="mt-5 max-w-xl text-[16px] leading-relaxed text-muted">
             Four to sixteen traders stake USDC, take hidden positions on live prices, and outlast a field that gets smaller every minute. The last traders standing take the pot, paid on Solana.
@@ -66,7 +66,7 @@ export default function Lobby() {
               const I = Icon as typeof Lock;
               return (
                 <div key={t as string}>
-                  <I size={18} className="text-accent" strokeWidth={1.75} />
+                  <I size={18} className="text-white" strokeWidth={1.75} />
                   <dt className="mt-2 text-sm font-semibold text-fg">{t as string}</dt>
                   <dd className="mt-0.5 text-xs text-faint">{d as string}</dd>
                 </div>
@@ -121,9 +121,9 @@ function RuleMarquee() {
     <div className="overflow-hidden rounded-full border border-border bg-surface/70 py-2.5">
       <div className="marquee-track flex w-max gap-8 px-4">
         {row.map((t, i) => (
-          <span key={i} className="flex items-center gap-8 text-[12px] font-semibold tracking-[0.14em] text-faint uppercase">
+          <span key={i} className="flex items-center gap-8 text-[13px] font-medium text-faint">
             {t}
-            <span className="h-1 w-1 rounded-full bg-accent" />
+            <span className="h-1 w-1 rounded-full bg-white/30" />
           </span>
         ))}
       </div>
@@ -191,7 +191,7 @@ function MarketStrip() {
 const STATUS: Record<number, { label: string; tone: "up" | "down" | "neutral" | "accent" | "warn" }> = {
   [RoomStatus.Open]: { label: "Open", tone: "up" },
   [RoomStatus.Starting]: { label: "Starting", tone: "warn" },
-  [RoomStatus.Live]: { label: "Live", tone: "down" },
+  [RoomStatus.Live]: { label: "Live", tone: "accent" },
   [RoomStatus.Ended]: { label: "Ended", tone: "neutral" },
   [RoomStatus.Settled]: { label: "Paid", tone: "neutral" },
   [RoomStatus.Cancelled]: { label: "Cancelled", tone: "neutral" },
@@ -227,7 +227,7 @@ function RoomsTable() {
       }
     >
       {error && <div className="border-b border-down/30 bg-down/5 px-4 py-3 text-xs text-down">{error}</div>}
-      <div className="hidden grid-cols-[1.2fr_1.3fr_0.8fr_1.3fr_0.6fr_0.7fr_24px] gap-3 border-b border-border px-4 py-2.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-faint md:grid">
+      <div className="hidden grid-cols-[1.2fr_1.3fr_0.8fr_1.3fr_0.6fr_0.7fr_24px] gap-3 border-b border-border px-4 py-2.5 text-[13px] font-medium text-faint md:grid">
         <span>Room</span>
         <span>Markets</span>
         <span>Entry</span>
@@ -238,7 +238,7 @@ function RoomsTable() {
       </div>
       {list.length === 0 ? (
         <div className="flex flex-col items-center gap-2 px-6 py-16 text-center">
-          <span className="grid h-12 w-12 place-items-center rounded-2xl border border-accent/25 bg-accent/10 text-accent">
+          <span className="glass grid h-12 w-12 place-items-center rounded-full text-white">
             <Trophy size={20} strokeWidth={1.6} />
           </span>
           <div className="display text-xl text-fg">
@@ -275,7 +275,7 @@ function RoomsTable() {
                       {r.seatsFilled}/{r.maxSeats} · top {finalistsFor(Math.max(r.seatsFilled, 4))} paid
                     </div>
                     <div className="mt-1.5 h-1 w-full max-w-[140px] overflow-hidden rounded-full bg-surface-3">
-                      <div className="h-full rounded-full bg-accent" style={{ width: `${fill}%` }} />
+                      <div className="h-full rounded-full bg-white/70" style={{ width: `${fill}%` }} />
                     </div>
                   </div>
                   <div className="num text-xs text-muted">{r.intervalSecs}s</div>
@@ -350,7 +350,7 @@ function CreateRoom() {
       <div className="space-y-5">
         <label className="block">
           <span className="text-xs font-medium text-muted">Entry</span>
-          <div className="mt-1.5 flex h-11 items-center gap-2 rounded-xl border border-border bg-bg px-3 focus-within:border-accent/60">
+          <div className="mt-1.5 flex h-11 items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 focus-within:border-accent">
             <UsdcIcon size={16} />
             <input
               value={entry}
@@ -385,7 +385,7 @@ function CreateRoom() {
                   onClick={() => toggle(f.id)}
                   className={cx(
                     "flex flex-col items-center gap-1.5 rounded-xl border py-2.5 text-[11px] font-semibold transition-colors",
-                    on ? "border-accent/70 bg-accent/10 text-fg" : "border-border text-muted hover:border-border-strong hover:text-fg",
+                    on ? "border-white/40 bg-white/10 text-white" : "border-white/10 text-muted hover:border-white/20 hover:text-white",
                   )}
                 >
                   <TokenIcon id={f.id} size={22} />
@@ -450,7 +450,7 @@ function HowItWorks() {
         {steps.map(([Icon, t, d], i) => (
           <div key={t} className="rounded-[var(--radius-card)] border border-border bg-surface p-5">
             <div className="flex items-center justify-between">
-              <span className="grid h-10 w-10 place-items-center rounded-xl border border-accent/30 bg-accent/10 text-accent">
+              <span className="glass grid h-10 w-10 place-items-center rounded-full text-white">
                 <Icon size={18} strokeWidth={1.75} />
               </span>
               <span className="num text-xs text-faint">0{i + 1}</span>
@@ -467,7 +467,7 @@ function HowItWorks() {
 function StormShowcase() {
   const storms = [StormKind.Spotlight, StormKind.Surge, StormKind.Freeze, StormKind.ZoneShrink];
   return (
-    <section className="overflow-hidden rounded-[22px] border border-violet/25 bg-[linear-gradient(180deg,#140e22_0%,#10141c_46%)]">
+    <section className="mesh overflow-hidden rounded-[28px] border border-white/10">
       <div className="px-5 py-8 sm:px-8">
         <div className="kicker">Storms</div>
         <h2 className="display mt-2 max-w-xl text-3xl sm:text-4xl">The rules change in public.</h2>
@@ -476,8 +476,8 @@ function StormShowcase() {
         </p>
         <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {storms.map((k) => (
-            <div key={k} className="rounded-2xl border border-violet/30 bg-black/25 p-4">
-              <div className="text-sm font-semibold text-accent">{STORM_COPY[k].title}</div>
+            <div key={k} className="glass rounded-[22px] p-4">
+              <div className="text-sm font-medium text-white">{STORM_COPY[k].title}</div>
               <p className="mt-2 text-[13px] leading-relaxed text-muted">{STORM_COPY[k].blurb("SOL", "Long")}</p>
             </div>
           ))}
@@ -495,7 +495,7 @@ function PayoutBand() {
   ];
   return (
     <section className="grid gap-4 lg:grid-cols-2">
-      <div className="rounded-[22px] border border-border bg-surface p-6 sm:p-8">
+      <div className="mesh rounded-[28px] border border-white/10 p-6 sm:p-8">
         <div className="kicker">Payout</div>
         <h2 className="display mt-2 text-3xl">USDC, from escrow.</h2>
         <p className="mt-3 text-sm leading-relaxed text-muted">
@@ -506,7 +506,7 @@ function PayoutBand() {
             <div key={place} className="flex items-center gap-3 text-sm">
               <span className="w-10 text-muted">{place}</span>
               <div className="h-2 flex-1 overflow-hidden rounded-full bg-surface-3">
-                <div className={cx("h-full rounded-full bg-accent", w)} />
+                <div className={cx("h-full rounded-full bg-white/80", w)} />
               </div>
               <span className="num w-12 text-right text-fg">{pct}</span>
             </div>

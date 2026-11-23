@@ -41,10 +41,10 @@ import { Button, Card, Empty, Pill, cx } from "@/components/ui";
 import { LogoMark } from "@/components/brand";
 import { buildPreview } from "@/lib/ui/preview";
 
-const STATUS: Record<number, { label: string; tone: "up" | "down" | "neutral" | "warn" }> = {
+const STATUS: Record<number, { label: string; tone: "up" | "down" | "neutral" | "accent" | "warn" }> = {
   [RoomStatus.Open]: { label: "Open", tone: "up" },
   [RoomStatus.Starting]: { label: "Starting", tone: "warn" },
-  [RoomStatus.Live]: { label: "Live", tone: "down" },
+  [RoomStatus.Live]: { label: "Live", tone: "accent" },
   [RoomStatus.Ended]: { label: "Ended", tone: "neutral" },
   [RoomStatus.Settled]: { label: "Paid out", tone: "neutral" },
   [RoomStatus.Cancelled]: { label: "Cancelled", tone: "neutral" },
@@ -280,7 +280,7 @@ export default function RoomPage() {
   return (
     <div className="space-y-5">
       {/* Room header */}
-      <div className="flex flex-wrap items-end justify-between gap-4">
+      <div className="mesh flex flex-wrap items-end justify-between gap-4 rounded-[28px] border border-white/10 px-5 py-5">
         <div>
           <Link href="/" className="inline-flex items-center gap-1.5 text-xs text-muted hover:text-fg">
             <ArrowLeft size={14} /> All rooms
@@ -297,7 +297,7 @@ export default function RoomPage() {
               Entry <span className="num text-fg">${fmtUsdc(view.entryAmount)}</span>
             </span>
             <span>
-              Pot <span className="num text-fg">${fmtUsdc(pot)}</span>
+              Pot <span className="balance text-2xl text-white">${fmtUsdc(pot)}</span>
             </span>
             <span>{view.assets.map((id) => feedById(id)?.symbol).join(" · ")}</span>
             <span>Cut every {view.intervalSecs}s</span>
@@ -463,7 +463,7 @@ function SeatsCard({
               key={i}
               className={cx(
                 "flex h-16 flex-col items-center justify-center gap-1 rounded-xl border text-[11px]",
-                p ? (mine ? "border-accent/60 bg-accent/10" : "border-border bg-surface-2") : "border-dashed border-border text-faint",
+                p ? (mine ? "border-white/30 bg-white/10" : "border-white/10 bg-white/5") : "border-dashed border-white/10 text-faint",
               )}
               title={p?.toBase58()}
             >
@@ -521,7 +521,7 @@ function PrizeCard({ room }: { room: RoomState }) {
       <div className="flex items-end justify-between">
         <div>
           <div className="text-xs text-muted">Pot so far</div>
-          <div className="display mt-1 text-4xl text-fg">${pot.toFixed(2)}</div>
+          <div className="balance mt-1 text-5xl text-white">${pot.toFixed(2)}</div>
         </div>
         <div className="text-right text-xs text-faint">
           Up to ${full.toFixed(2)} when full
@@ -534,7 +534,7 @@ function PrizeCard({ room }: { room: RoomState }) {
           <div key={i} className="flex items-center gap-3 text-[13px]">
             <span className="w-14 text-muted">{i === 0 ? "1st" : i === 1 ? "2nd" : "3rd"}</span>
             <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-surface-3">
-              <div className="h-full rounded-full bg-accent" style={{ width: `${pct}%` }} />
+              <div className="h-full rounded-full bg-white/75" style={{ width: `${pct}%` }} />
             </div>
             <span className="num w-20 text-right text-fg">${((prize * pct) / 100).toFixed(2)}</span>
           </div>
@@ -574,13 +574,13 @@ function ResultCard({
   return (
     <Card>
       <div className="flex flex-col items-center py-4 text-center">
-        <span className={cx("grid h-16 w-16 place-items-center rounded-2xl", won ? "bg-accent/15 text-accent" : "bg-surface-2 text-faint")}>
+        <span className={cx("grid h-16 w-16 place-items-center rounded-full", won ? "bg-white text-black" : "bg-white/8 text-faint")}>
           <Trophy size={28} strokeWidth={1.6} />
         </span>
         {seat >= 0 ? (
           <>
             <div className="kicker mt-4">{won ? "You finished" : "Eliminated"}</div>
-            <div className="display mt-1 text-5xl">
+            <div className="balance mt-1 text-6xl text-white">
               #{place} <span className="text-lg font-normal text-faint">of {room.seatsFilled}</span>
             </div>
             {won ? (

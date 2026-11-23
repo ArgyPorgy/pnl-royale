@@ -32,8 +32,8 @@ export function HeroArt() {
   const y = (v: number) => 36 + ((hi - v) / (hi - lo)) * (H - 150);
   const cw = (W - 72) / n;
   const lines = [
-    { pts: walk(11, n, 148, 8, 1.15), color: "#22d3ee", name: "You" },
-    { pts: walk(29, n, 146, 8, 0.15), color: "#a78bfa", name: "Seat 4" },
+    { pts: walk(11, n, 148, 8, 1.15), color: "#e6f77a", name: "You" },
+    { pts: walk(29, n, 146, 8, 0.15), color: "#f4f1ea", name: "Seat 4" },
     { pts: walk(41, n, 150, 8, -2.4), color: "#ff4d6d", name: "Seat 7" },
   ];
   const ly = (v: number) => 250 + (150 - v) * 1.15;
@@ -41,8 +41,7 @@ export function HeroArt() {
   const path = (pts: number[]) => pts.map((v, i) => `${i ? "L" : "M"}${36 + i * cw + cw / 2},${Math.min(ly(v), H - 28).toFixed(1)}`).join(" ");
 
   return (
-    <div className="relative overflow-hidden rounded-[22px] border border-border bg-[#0c1018] shadow-[0_30px_80px_-40px_rgba(34,211,238,0.35)]">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_80%_0%,rgba(34,211,238,0.16),transparent_55%)]" />
+    <div className="glass relative overflow-hidden rounded-[24px]">
       <div className="relative flex items-center justify-between border-b border-border px-4 py-3">
         <div className="flex items-center gap-2">
           <span className="pulse-dot h-1.5 w-1.5 rounded-full bg-down" />
@@ -87,7 +86,7 @@ export function HeroArt() {
       <div className="relative grid grid-cols-3 border-t border-border">
         {[
           ["Alive", "8 of 8", "text-fg"],
-          ["Your equity", "12,480", "text-accent"],
+          ["Your equity", "12,480", "text-white"],
           ["Next cut", "00:42", "text-fg"],
         ].map(([k, v, c]) => (
           <div key={k} className="border-r border-border px-4 py-3 last:border-r-0">

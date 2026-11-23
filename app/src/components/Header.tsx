@@ -33,7 +33,7 @@ export function Header() {
                   href={n.href}
                   className={cx(
                     "rounded-lg px-3 py-1.5 text-sm font-medium transition-colors",
-                    on ? "bg-surface-2 text-fg" : "text-muted hover:text-fg",
+                    on ? "bg-accent text-black" : "text-muted hover:text-white",
                   )}
                 >
                   {n.label}
@@ -59,7 +59,7 @@ export function Header() {
             const on = n.href === "/" ? path === "/" : path.startsWith(n.href);
             const Icon = n.icon;
             return (
-              <Link key={n.href} href={n.href} className={cx("flex flex-col items-center gap-0.5 py-1.5 text-[11px] font-semibold", on ? "text-accent" : "text-faint")}>
+              <Link key={n.href} href={n.href} className={cx("mx-2 flex flex-col items-center gap-0.5 rounded-full py-1.5 text-[11px] font-medium", on ? "bg-accent text-black" : "text-faint")}>
                 <Icon size={18} strokeWidth={1.75} />
                 {n.label}
               </Link>

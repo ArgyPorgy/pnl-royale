@@ -1,18 +1,18 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none">
   <defs>
-    <linearGradient id="pnl-signal" x1="4" y1="2" x2="28" y2="30" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#67E8F9"/>
-      <stop offset="0.45" stop-color="#22D3EE"/>
-      <stop offset="1" stop-color="#8B5CF6"/>
+    <linearGradient id="pnl-mesh" x1="2" y1="2" x2="30" y2="30" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#C98A7E"/>
+      <stop offset="0.45" stop-color="#7B6AA8"/>
+      <stop offset="1" stop-color="#2A2350"/>
     </linearGradient>
   </defs>
-  <rect width="32" height="32" rx="8" fill="#10141C"/>
-  <rect x="0.75" y="0.75" width="30.5" height="30.5" rx="7.25" stroke="url(#pnl-signal)" stroke-width="1.5"/>
-  <path d="M7.2 23.6h17.6" stroke="url(#pnl-signal)" stroke-width="1.5" stroke-linecap="round"/>
-  <rect x="8" y="15.6" width="3.2" height="8" rx="0.6" fill="url(#pnl-signal)" opacity="0.55"/>
-  <rect x="14.4" y="11" width="3.2" height="12.6" rx="0.6" fill="url(#pnl-signal)" opacity="0.8"/>
-  <rect x="20.8" y="7" width="3.2" height="16.6" rx="0.6" fill="url(#pnl-signal)"/>
-  <path d="M9.6 13.2v2.4M16 8.2v2.8M22.4 4.15v2.85" stroke="url(#pnl-signal)" stroke-width="1.15" stroke-linecap="round"/>
-  <path d="M22.4 2.35l1.2 1.35-1.2 1.35-1.2-1.35z" fill="#67E8F9"/>
+  <rect width="32" height="32" rx="9" fill="#12111A"/>
+  <rect x="0.75" y="0.75" width="30.5" height="30.5" rx="8.25" stroke="url(#pnl-mesh)" stroke-width="1.5"/>
+  <path d="M7.2 23.6h17.6" stroke="url(#pnl-mesh)" stroke-width="1.5" stroke-linecap="round"/>
+  <rect x="8" y="15.6" width="3.2" height="8" rx="0.6" fill="url(#pnl-mesh)" opacity="0.55"/>
+  <rect x="14.4" y="11" width="3.2" height="12.6" rx="0.6" fill="url(#pnl-mesh)" opacity="0.82"/>
+  <rect x="20.8" y="7" width="3.2" height="16.6" rx="0.6" fill="url(#pnl-mesh)"/>
+  <path d="M9.6 13.2v2.4M16 8.2v2.8M22.4 4.15v2.85" stroke="url(#pnl-mesh)" stroke-width="1.15" stroke-linecap="round"/>
+  <path d="M22.4 2.35l1.2 1.35-1.2 1.35-1.2-1.35z" fill="#E6F77A"/>
 </svg>

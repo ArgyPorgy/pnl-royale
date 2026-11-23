@@ -51,7 +51,7 @@ export default function Watch() {
           <div className="mt-2 flex flex-wrap items-center gap-3">
             <TokenStack ids={room.assets} size={28} />
             <h1 className="display text-3xl">Spectator · {room.roomId.toString().slice(-6)}</h1>
-            <Pill tone={isLive ? "down" : "neutral"} dot={isLive}>
+            <Pill tone={isLive ? "accent" : "neutral"} dot={isLive}>
               <Eye size={12} /> {isLive ? "Live" : "Replay"}
             </Pill>
           </div>
@@ -63,7 +63,7 @@ export default function Watch() {
       </div>
       <Card bodyClassName="py-3">
         <div className="flex items-center gap-2 text-sm text-muted">
-          <Lock size={14} className="text-accent" />
+          <Lock size={14} className="text-white" />
           Positions are sealed. This board shows who is alive, the public rank at each cut, and the storm in force.
         </div>
       </Card>

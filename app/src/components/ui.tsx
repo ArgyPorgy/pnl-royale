@@ -8,16 +8,16 @@ type Variant = "primary" | "secondary" | "ghost" | "up" | "down";
 type Size = "sm" | "md" | "lg";
 
 const VARIANT: Record<Variant, string> = {
-  primary: "bg-accent text-[#041318] hover:bg-accent-strong shadow-[inset_0_1px_0_rgba(255,255,255,0.35)]",
-  secondary: "bg-surface-2 text-fg border border-border hover:bg-surface-3 hover:border-border-strong",
-  ghost: "text-muted hover:text-fg hover:bg-surface-2",
+  primary: "bg-white text-black hover:bg-white/90",
+  secondary: "bg-white/8 text-white border border-white/10 hover:bg-white/14 backdrop-blur",
+  ghost: "text-muted hover:text-white hover:bg-white/8",
   up: "bg-up text-[#04140c] hover:bg-up-strong",
   down: "bg-down text-white hover:bg-down-strong",
 };
 const SIZE: Record<Size, string> = {
-  sm: "h-8 px-3 text-[13px] rounded-lg gap-1.5",
-  md: "h-10 px-4 text-sm rounded-xl gap-2",
-  lg: "h-12 px-5 text-[15px] rounded-xl gap-2",
+  sm: "h-8 px-3.5 text-[13px] rounded-full gap-1.5",
+  md: "h-10 px-4 text-sm rounded-full gap-2",
+  lg: "h-12 px-5 text-[15px] rounded-full gap-2",
 };
 
 export function Button({
@@ -48,7 +48,7 @@ const TONE: Record<Tone, string> = {
   neutral: "bg-surface-2 text-muted border-border",
   up: "bg-up/10 text-up border-up/25",
   down: "bg-down/10 text-down border-down/25",
-  accent: "bg-accent/12 text-accent border-accent/30",
+  accent: "bg-accent text-[#14140c] border-transparent",
   warn: "bg-warn/10 text-warn border-warn/25",
 };
 
@@ -78,7 +78,7 @@ export function Card({
     <section className={cx("rounded-[var(--radius-card)] border border-border bg-surface/95 shadow-[0_1px_0_rgba(255,255,255,0.03)_inset]", className)}>
       {(title || action) && (
         <header className="flex items-center justify-between gap-3 border-b border-border px-4 py-3">
-          <h2 className="text-[12px] font-semibold uppercase tracking-[0.12em] text-faint">{title}</h2>
+          <h2 className="text-[13px] font-medium text-muted">{title}</h2>
           {action}
         </header>
       )}
@@ -112,7 +112,7 @@ export function Segmented<T extends string | number>({
           className={cx(
             "flex-1 whitespace-nowrap rounded-lg font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-35",
             size === "sm" ? "h-7 px-2.5 text-xs" : "h-9 px-3 text-[13px]",
-            o.value === value ? "bg-surface-3 text-fg shadow-[0_0_0_1px_rgba(34,211,238,0.55)]" : "text-muted hover:text-fg",
+            o.value === value ? "bg-white text-black" : "text-muted hover:text-white",
           )}
         >
           {o.label}
@@ -159,7 +159,7 @@ export function Empty({
       {loading ? (
         <div className="mb-4 h-10 w-10 rounded-xl skeleton" />
       ) : (
-        icon && <div className="mb-4 grid h-12 w-12 place-items-center rounded-2xl border border-accent/30 bg-accent/10 text-accent">{icon}</div>
+        icon && <div className="glass mb-4 grid h-12 w-12 place-items-center rounded-full text-white">{icon}</div>
       )}
       <div className="display text-2xl text-fg">{title}</div>
       {body && <p className="mt-2 max-w-sm text-sm leading-relaxed text-muted">{body}</p>}

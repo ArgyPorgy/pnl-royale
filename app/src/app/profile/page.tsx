@@ -60,8 +60,8 @@ export default function Profile() {
   const ring = Math.max(0, Math.min(1, (elo - 900) / 900));
   return (
     <div className="space-y-8">
-      <div className="flex flex-wrap items-center gap-5">
-        {publicKey ? <Identicon pubkey={publicKey} size={64} /> : <span className="grid h-16 w-16 place-items-center rounded-2xl border border-accent/30 bg-accent/10 text-accent"><Trophy size={22} /></span>}
+      <div className="mesh flex flex-wrap items-center gap-5 rounded-[28px] border border-white/10 px-5 py-5">
+        {publicKey ? <Identicon pubkey={publicKey} size={64} /> : <span className="grid h-16 w-16 place-items-center rounded-full bg-white text-black"><Trophy size={22} /></span>}
         <div>
           <div className="kicker">{rankTitle(elo)}</div>
           <h1 className="display mt-1 text-4xl">Rating</h1>
@@ -96,9 +96,9 @@ export default function Profile() {
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
             {stats.map(([Icon, k, v]) => (
               <Card key={k}>
-                <Icon size={16} className="text-accent" strokeWidth={1.75} />
+                <Icon size={16} className="text-white/80" strokeWidth={1.75} />
                 <div className="mt-3 text-xs text-muted">{k}</div>
-                <div className="num mt-1 text-2xl text-fg">{v}</div>
+                <div className="balance mt-1 text-3xl text-white">{v}</div>
               </Card>
             ))}
           </div>
@@ -123,13 +123,13 @@ function RatingRing({ elo, ring }: { elo: number; ring: number }) {
           cy="42"
           r={r}
           fill="none"
-          stroke="#22d3ee"
+          stroke="#e6f77a"
           strokeWidth="6"
           strokeLinecap="round"
           strokeDasharray={`${c * ring} ${c}`}
           transform="rotate(-90 42 42)"
         />
-        <text x="42" y="46" textAnchor="middle" fill="#e7eef6" fontSize="14" fontFamily="var(--font-jetbrains), ui-monospace, monospace">
+        <text x="42" y="46" textAnchor="middle" fill="#ffffff" fontSize="13" fontFamily="var(--font-display-face), ui-sans-serif, sans-serif">
           {elo}
         </text>
       </svg>
