@@ -5,7 +5,7 @@ import { memo, useEffect, useRef } from "react";
 
 export type TvInterval = "1" | "5" | "15";
 
-function TVChartInner({ symbol, interval, height = 440 }: { symbol: string; interval: TvInterval; height?: number }) {
+function TVChartInner({ symbol, interval, height }: { symbol: string; interval: TvInterval; height?: number }) {
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const host = ref.current;
@@ -28,7 +28,7 @@ function TVChartInner({ symbol, interval, height = 440 }: { symbol: string; inte
       theme: "dark",
       style: "1",
       locale: "en",
-      backgroundColor: "#111318",
+      backgroundColor: "#0c1018",
       gridColor: "rgba(255, 255, 255, 0.04)",
       hide_top_toolbar: true,
       hide_side_toolbar: true,
@@ -49,7 +49,7 @@ function TVChartInner({ symbol, interval, height = 440 }: { symbol: string; inte
   // TradingView's autosize rewrites its container to height:100%, so the fixed height lives on
   // a wrapper the widget script never touches.
   return (
-    <div className="w-full overflow-hidden" style={{ height }}>
+    <div className="h-full w-full overflow-hidden" style={height ? { height } : undefined}>
       <div ref={ref} className="tradingview-widget-container h-full w-full" />
     </div>
   );

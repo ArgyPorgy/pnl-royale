@@ -1,32 +1,13 @@
 "use client";
 import { useEffect, useState } from "react";
 import type { PublicKey } from "@solana/web3.js";
-import {
-  Crosshair,
-  ExternalLink,
-  Gauge,
-  Lock,
-  Minus,
-  Shrink,
-  Snowflake,
-  Trophy,
-  type LucideIcon,
-} from "lucide-react";
+import { Crosshair, ExternalLink, Gauge, Lock, Minus, Shrink, Snowflake, Trophy, type LucideIcon } from "lucide-react";
 import type { PositionState, RoomState } from "@/lib/royale/client";
 import { assetSymbol, priceToNumber } from "@/lib/royale/client";
-import {
-  FREEZE_SECS,
-  LEVERAGES,
-  MIN_HOLD_SECS,
-  STORM_COPY,
-  StormKind,
-  SURGE_LEVERAGE,
-  erExplorerTx,
-  explorerAccount,
-  feedById,
-} from "@/lib/royale/constants";
+import { FREEZE_SECS, LEVERAGES, MIN_HOLD_SECS, STORM_COPY, StormKind, SURGE_LEVERAGE, erExplorerTx, explorerAccount, feedById } from "@/lib/royale/constants";
 import { checkpointTs, fmtChips, fmtPrice, fmtUsdc, intervalOf, liveEquity, prizeSplit, short, stormFor } from "@/lib/royale/game";
 import { TVChart, type TvInterval } from "./TVChart";
+import { OracleChart } from "./OracleChart";
 import { Identicon, TokenIcon } from "./brand";
 import { Button, Card, Pill, Row, Segmented, cx } from "./ui";
 
@@ -38,45 +19,51 @@ export const STORM_ICON: Record<StormKind, LucideIcon> = {
   [StormKind.ZoneShrink]: Shrink,
 };
 
+const STORM_ANIM: Record<StormKind, string> = {
+  [StormKind.None]: "",
+  [StormKind.Spotlight]: "storm-spotlight",
+  [StormKind.Surge]: "storm-surge",
+  [StormKind.Freeze]: "storm-freeze",
+  [StormKind.ZoneShrink]: "storm-shrink",
+};
+
 export const mmss = (s: number) => {
   const t = Math.max(0, Math.ceil(s));
   return `${String(Math.floor(t / 60)).padStart(2, "0")}:${String(t % 60).padStart(2, "0")}`;
 };
 
-/* ------------------------------------------------------------------ Round progress */
-
 export function RoundProgress({ room, now }: { room: RoomState; now: number }) {
   const cur = intervalOf(room.startTs, room.intervalSecs, now);
   const nextCut = checkpointTs(room, room.nextCheckpoint);
   const final = room.nextCheckpoint > 5;
+  const left = nextCut - now;
+  const urgent = left < 10;
   return (
     <Card bodyClassName="p-0">
-      <div className="flex flex-wrap items-center gap-x-8 gap-y-3 px-5 py-4">
+      <div className="flex flex-wrap items-end gap-x-10 gap-y-4 px-5 py-4">
         <div>
-          <div className="text-xs text-muted">{final ? "Final bell in" : `Cut ${room.nextCheckpoint} of 5 in`}</div>
-          <div className={cx("num mt-0.5 text-[28px] leading-none", nextCut - now < 10 ? "text-down" : "text-fg")}>{mmss(nextCut - now)}</div>
+          <div className="kicker">{final ? "Final bell" : `Cut ${room.nextCheckpoint} of 5`}</div>
+          <div className={cx("balance mt-1 text-[44px] leading-none", urgent ? "cut-urgent text-down" : "text-white")}>{mmss(left)}</div>
         </div>
         <div>
           <div className="text-xs text-muted">Alive</div>
-          <div className="num mt-0.5 text-[28px] leading-none text-fg">
+          <div className="num mt-1 text-[32px] leading-none text-fg">
             {room.aliveCount}
             <span className="text-base text-faint">/{room.seatsFilled}</span>
           </div>
         </div>
         <div>
           <div className="text-xs text-muted">Interval</div>
-          <div className="num mt-0.5 text-[28px] leading-none text-fg">
+          <div className="num mt-1 text-[32px] leading-none text-fg">
             {cur + 1}
             <span className="text-base text-faint">/6</span>
           </div>
         </div>
-        <div className="ml-auto hidden text-right text-xs text-faint md:block">
-          Eliminations are executed by an onchain crank
-          <br />
-          inside the TEE. Anyone can trigger an overdue cut.
+        <div className="ml-auto hidden max-w-[220px] text-right text-xs leading-relaxed text-faint md:block">
+          Eliminations run from an onchain crank inside the TEE. Anyone can trigger a cut that is already due.
         </div>
       </div>
-      <div className="grid grid-cols-6 gap-1 border-t border-border p-3">
+      <div className="grid grid-cols-6 gap-1.5 border-t border-border p-3">
         {Array.from({ length: 6 }, (_, i) => {
           const start = room.startTs + i * room.intervalSecs;
           const pct = Math.min(100, Math.max(0, ((now - start) / room.intervalSecs) * 100));
@@ -93,9 +80,9 @@ export function RoundProgress({ room, now }: { room: RoomState; now: number }) {
           return (
             <div key={i} title={label}>
               <div className="h-1.5 overflow-hidden rounded-full bg-surface-3">
-                <div className={cx("h-full rounded-full", i === cur ? "bg-accent" : "bg-faint/60")} style={{ width: `${pct}%` }} />
+                <div className={cx("h-full rounded-full", i === cur ? "bg-accent" : "bg-faint/50")} style={{ width: `${pct}%` }} />
               </div>
-              <div className={cx("mt-2 flex items-center gap-1.5 truncate text-[11px]", storm.kind !== StormKind.None ? "text-[#a99fff]" : "text-faint")}>
+              <div className={cx("mt-2 flex items-center gap-1.5 truncate text-[12px]", storm.kind !== StormKind.None ? "text-white" : "text-faint")}>
                 <Icon size={12} strokeWidth={2} className="shrink-0" />
                 <span className="hidden truncate sm:inline">{label}</span>
               </div>
@@ -107,7 +94,24 @@ export function RoundProgress({ room, now }: { room: RoomState; now: number }) {
   );
 }
 
-/* ------------------------------------------------------------------ Storm */
+export function StormBanner({ room, now }: { room: RoomState; now: number }) {
+  const cur = intervalOf(room.startTs, room.intervalSecs, now);
+  const storm = stormFor(room, cur);
+  if (storm.kind === StormKind.None) return null;
+  const Icon = STORM_ICON[storm.kind];
+  return (
+    <div className={cx("mesh fade-up flex items-start gap-3 overflow-hidden rounded-[24px] border border-white/10 px-4 py-3", STORM_ANIM[storm.kind])}>
+      <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-black/30 text-white">
+        <Icon size={18} />
+      </span>
+      <div>
+        <div className="kicker">Storm live</div>
+        <div className="mt-0.5 text-sm font-semibold text-fg">{STORM_COPY[storm.kind].title}</div>
+        <p className="text-[13px] text-muted">{STORM_COPY[storm.kind].blurb(assetSymbol(room, storm.asset), storm.side === 1 ? "Long" : "Short")}</p>
+      </div>
+    </div>
+  );
+}
 
 export function StormCard({ room, now }: { room: RoomState; now: number }) {
   const cur = intervalOf(room.startTs, room.intervalSecs, now);
@@ -124,16 +128,16 @@ export function StormCard({ room, now }: { room: RoomState; now: number }) {
         </span>
       }
     >
-      <div className="flex items-start gap-3">
-        <span className={cx("grid h-9 w-9 shrink-0 place-items-center rounded-[10px]", active ? "bg-accent/15 text-[#a99fff]" : "bg-surface-2 text-faint")}>
+      <div className={cx("flex items-start gap-3 rounded-[20px] p-2", active && "mesh")}>
+        <span className={cx("grid h-10 w-10 shrink-0 place-items-center rounded-full", active ? "bg-white/10 text-white" : "bg-surface-2 text-faint")}>
           <Icon size={18} strokeWidth={1.75} />
         </span>
         <div>
-          <div className="text-sm font-medium text-fg">{active ? STORM_COPY[storm.kind].title : pending ? "Drawing a storm" : "No storm"}</div>
+          <div className="text-sm font-semibold text-fg">{active ? STORM_COPY[storm.kind].title : pending ? "Drawing a storm" : "Clear interval"}</div>
           <p className="mt-0.5 text-[13px] leading-relaxed text-muted">
             {active
               ? STORM_COPY[storm.kind].blurb(assetSymbol(room, storm.asset), storm.side === 1 ? "Long" : "Short")
-              : "A random storm can change the rules each interval: 2x PnL on one market, 25x leverage, a frozen side, or a faster bleed."}
+              : "A storm can double one market, unlock 25x, freeze a side, or bleed flat equity faster."}
           </p>
         </div>
       </div>
@@ -141,23 +145,26 @@ export function StormCard({ room, now }: { room: RoomState; now: number }) {
   );
 }
 
-/* ------------------------------------------------------------------ Chart */
-
 export function ChartPanel({
   room,
   prices,
   asset,
   onAsset,
-  height = 460,
+  history,
 }: {
   room: RoomState;
   prices: (bigint | null)[];
   asset: number;
   onAsset: (i: number) => void;
-  height?: number;
+  history?: number[][];
 }) {
   const [tf, setTf] = useState<TvInterval>("1");
+  const [pref, setPref] = useState<"oracle" | "reference" | null>(null);
   const feed = feedById(room.assets[asset]);
+  const series = (history?.[asset] ?? []).map((raw) => (feed ? priceToNumber(BigInt(Math.round(raw)), feed.exponent) : Number(raw)));
+  const hasSeries = series.length > 8;
+  const mode = pref ?? (hasSeries ? "oracle" : "reference");
+  const mark = prices[asset] && feed ? priceToNumber(prices[asset]!, feed.exponent) : series.at(-1);
   return (
     <section className="overflow-hidden rounded-[var(--radius-card)] border border-border bg-surface">
       <div className="flex flex-wrap items-center gap-2 border-b border-border px-3 py-2.5">
@@ -169,44 +176,67 @@ export function ChartPanel({
               <button
                 key={id}
                 onClick={() => onAsset(i)}
-                className={cx(
-                  "flex items-center gap-2.5 rounded-[10px] px-3 py-1.5 text-left transition-colors",
-                  i === asset ? "bg-surface-3" : "hover:bg-surface-2",
-                )}
+                className={cx("flex items-center gap-2.5 rounded-full px-3 py-1.5 text-left transition-colors", i === asset ? "bg-white/10 text-white" : "hover:bg-white/5")}
               >
                 <TokenIcon id={id} size={22} />
                 <span>
-                  <span className="block text-xs font-medium text-fg">{f?.symbol}/USD</span>
+                  <span className="block text-xs font-semibold text-fg">{f?.symbol}/USD</span>
                   <span className="num block text-xs text-muted">{p && f ? `$${fmtPrice(priceToNumber(p, f.exponent))}` : "—"}</span>
                 </span>
               </button>
             );
           })}
         </div>
-        <Segmented<TvInterval>
-          size="sm"
-          className="ml-auto"
-          value={tf}
-          onChange={setTf}
-          options={[
-            { value: "1", label: "1m" },
-            { value: "5", label: "5m" },
-            { value: "15", label: "15m" },
-          ]}
-        />
+        <div className="ml-auto flex items-center gap-2">
+          <Segmented<"oracle" | "reference">
+            size="sm"
+            value={mode}
+            onChange={setPref}
+            options={[
+              { value: "oracle", label: "Oracle" },
+              { value: "reference", label: "Reference" },
+            ]}
+          />
+          {mode === "reference" && (
+            <Segmented<TvInterval>
+              size="sm"
+              value={tf}
+              onChange={setTf}
+              options={[
+                { value: "1", label: "1m" },
+                { value: "5", label: "5m" },
+                { value: "15", label: "15m" },
+              ]}
+            />
+          )}
+        </div>
       </div>
-      {feed && <TVChart symbol={feed.tv} interval={tf} height={height} />}
+      <div className="relative h-[320px] bg-[#0c1018] sm:h-[420px] xl:h-[480px]">
+        {mode === "oracle" && hasSeries ? (
+          <OracleChart points={series} accent={series[series.length - 1] >= series[0] ? "#1edb8a" : "#ff4d6d"} />
+        ) : mode === "oracle" ? (
+          <div className="grid h-full place-items-center px-6 text-center">
+            <div>
+              <div className="kicker">Oracle</div>
+              <div className="num mt-2 text-4xl text-fg">{mark ? `$${fmtPrice(mark)}` : "—"}</div>
+              <p className="mt-2 text-sm text-muted">The tape fills as Pyth prints on the rollup. The reference chart is available beside it.</p>
+            </div>
+          </div>
+        ) : (
+          feed && <TVChart symbol={feed.tv} interval={tf} />
+        )}
+      </div>
       <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border px-4 py-2 text-[11px] text-faint">
-        <span>Trades execute at the onchain Pyth Lazer oracle price, read inside the TEE on every action.</span>
-        <a href={`https://www.tradingview.com/symbols/${feed?.tv.replace(":", "-")}/`} target="_blank" rel="noreferrer" className="hover:text-muted">
-          Chart by TradingView
-        </a>
+        <span>Fills use the onchain Pyth Lazer price, read inside the TEE on every action.</span>
+        {mode === "reference" && (
+          <a href={`https://www.tradingview.com/symbols/${feed?.tv.replace(":", "-")}/`} target="_blank" rel="noreferrer" className="hover:text-muted">
+            Chart by TradingView
+          </a>
+        )}
       </div>
     </section>
   );
 }
-
-/* ------------------------------------------------------------------ Position */
 
 export function PositionCard({
   room,
@@ -224,7 +254,10 @@ export function PositionCard({
   if (!position)
     return (
       <Card title="Your position">
-        <div className="text-[13px] text-muted">Reading your sealed position from the TEE…</div>
+        <div className="space-y-2">
+          <div className="skeleton h-8 w-32" />
+          <div className="text-[13px] text-muted">Reading your sealed position from the TEE…</div>
+        </div>
       </Card>
     );
   const eq = liveEquity(room, position, prices, now);
@@ -242,17 +275,17 @@ export function PositionCard({
       title="Your position"
       action={
         <span className="flex items-center gap-1.5 text-[11px] text-faint" title="Sealed by an owner-only permission inside the TEE">
-          <Lock size={12} /> Only you can see this
+          <Lock size={12} /> Sealed
         </span>
       }
     >
-      <div className="flex items-end justify-between">
+      <div className="mesh -mx-4 -mt-4 mb-4 flex items-end justify-between rounded-t-[20px] px-4 pb-4 pt-5">
         <div>
-          <div className="text-xs text-muted">Equity</div>
-          <div className={cx("num mt-1 text-[30px] leading-none", dead ? "text-faint" : "text-fg")}>{fmtChips(eq)}</div>
+          <div className="text-xs text-white/70">Equity</div>
+          <div className={cx("balance mt-1 text-[40px] leading-none", dead ? "text-white/40" : "text-white")}>{fmtChips(eq)}</div>
         </div>
         <div className="text-right">
-          <div className={cx("num text-sm", total >= 0 ? "text-up" : "text-down")}>
+          <div className={cx("num text-sm font-semibold", total >= 0 ? "text-up" : "text-down")}>
             {total >= 0 ? "+" : ""}
             {total.toFixed(2)}%
           </div>
@@ -292,8 +325,6 @@ export function PositionCard({
   );
 }
 
-/* ------------------------------------------------------------------ Order ticket */
-
 export function OrderTicket({
   room,
   position,
@@ -309,7 +340,7 @@ export function OrderTicket({
   busy: boolean;
   onTrade: (side: -1 | 0 | 1, lev: number, asset: number) => void;
 }) {
-  const [side, setSide] = useState<1 | -1>(1);
+  const [side, setSide] = useState<1 | -1 | 0>(1);
   const [lev, setLev] = useState(5);
   const cur = intervalOf(room.startTs, room.intervalSecs, now);
   const storm = stormFor(room, cur);
@@ -322,71 +353,81 @@ export function OrderTicket({
   const holdLeft = position ? Math.max(0, position.lastActionTs + MIN_HOLD_SECS - now) : 0;
   const dead = !!position && (!position.alive || position.liquidated);
   const symbol = assetSymbol(room, asset);
-  const same = position && position.side === side && position.leverage === lev && position.assetIdx === asset;
-  const fee = position ? (Number(position.equity) / 1e6) * lev * 0.0005 : 0;
-  const blocked = busy || dead || holdLeft > 0 || !!same || frozen === side;
+  const same = side === 0 ? position?.side === 0 : position && position.side === side && position.leverage === lev && position.assetIdx === asset;
+  const fee = position && side !== 0 ? (Number(position.equity) / 1e6) * lev * 0.0005 : 0;
+  const blocked = busy || dead || holdLeft > 0 || !!same || (side !== 0 && frozen === side);
+  const sides: { value: 1 | -1 | 0; label: string }[] = [
+    { value: 1, label: "Long" },
+    { value: 0, label: "Flat" },
+    { value: -1, label: "Short" },
+  ];
   return (
     <Card title="Trade">
-      <Segmented<1 | -1>
-        className="w-full"
-        value={side}
-        onChange={setSide}
-        options={[
-          { value: 1, label: <span className={side === 1 ? "text-up" : ""}>Long</span> },
-          { value: -1, label: <span className={side === -1 ? "text-down" : ""}>Short</span> },
-        ]}
-      />
-      <div className="mt-4">
+      <div className="grid grid-cols-3 gap-1.5">
+        {sides.map((s) => {
+          const on = side === s.value;
+          return (
+            <button
+              key={s.label}
+              type="button"
+              onClick={() => setSide(s.value)}
+              className={cx(
+                "h-11 rounded-xl border text-sm font-semibold transition-colors",
+                on && s.value === 1 && "border-up/50 bg-up/15 text-up",
+                on && s.value === -1 && "border-down/50 bg-down/15 text-down",
+                on && s.value === 0 && "border-border-strong bg-surface-3 text-fg",
+                !on && "border-border text-muted hover:text-fg",
+              )}
+            >
+              {s.label}
+            </button>
+          );
+        })}
+      </div>
+      <div className={cx("mt-4", side === 0 && "opacity-40")}>
         <div className="mb-1.5 flex items-center justify-between text-xs">
           <span className="text-muted">Leverage</span>
-          {surge && <span className="text-[#a99fff]">Surge: 25x unlocked</span>}
+          {surge && <span className="font-medium text-white">Surge · 25x open</span>}
         </div>
-        <Segmented<number> className="w-full" value={lev} onChange={setLev} options={levels.map((l) => ({ value: l, label: `${l}x` }))} />
+        <Segmented<number> className="w-full" value={lev} onChange={setLev} options={levels.map((l) => ({ value: l, label: `${l}x`, disabled: side === 0 }))} />
       </div>
-      <div className="mt-4 rounded-[10px] border border-border bg-bg px-3 py-1.5">
+      <div className="mt-4 rounded-xl border border-border bg-bg px-3 py-1.5">
         <Row label="Market" value={`${symbol}/USD`} />
-        <Row label="Notional" value={position ? `${((Number(position.equity) / 1e6) * lev).toLocaleString(undefined, { maximumFractionDigits: 0 })} chips` : "—"} />
-        <Row label="Spread (5 bps)" value={position ? `${fee.toFixed(2)} chips` : "—"} />
+        <Row label="Notional" value={position && side !== 0 ? `${((Number(position.equity) / 1e6) * lev).toLocaleString(undefined, { maximumFractionDigits: 0 })} chips` : side === 0 ? "Flat" : "—"} />
+        <Row label="Spread (5 bps)" value={position && side !== 0 ? `${fee.toFixed(2)} chips` : "—"} />
       </div>
       <Button
-        variant={side === 1 ? "up" : "down"}
+        variant={side === 1 ? "up" : side === -1 ? "down" : "secondary"}
         size="lg"
         className="mt-4 w-full"
         disabled={blocked}
-        onClick={() => onTrade(side, lev, asset)}
+        onClick={() => onTrade(side, side === 0 ? 1 : lev, side === 0 ? (position?.assetIdx ?? asset) : asset)}
       >
         {dead
           ? "Eliminated"
-          : frozen === side
+          : side !== 0 && frozen === side
             ? `${side === 1 ? "Longs" : "Shorts"} frozen`
             : holdLeft > 0
               ? `Hold ${holdLeft.toFixed(1)}s`
               : busy
                 ? "Submitting…"
                 : same
-                  ? "Position open"
-                  : `${side === 1 ? "Long" : "Short"} ${symbol} ${lev}x`}
-      </Button>
-      <Button
-        variant="secondary"
-        className="mt-2 w-full"
-        disabled={busy || dead || holdLeft > 0 || !position || position.side === 0}
-        onClick={() => onTrade(0, 1, position?.assetIdx ?? 0)}
-      >
-        Close position
+                  ? side === 0
+                    ? "Already flat"
+                    : "Position open"
+                  : side === 0
+                    ? "Go flat"
+                    : `${side === 1 ? "Long" : "Short"} ${symbol} ${lev}x`}
       </Button>
       <p className="mt-3 text-[11px] leading-relaxed text-faint">
-        Signed by your session key and settled in the TEE: no wallet popup, no gas. Minimum hold {MIN_HOLD_SECS}s between trades.
-        Flat equity bleeds 1% per minute.
+        Signed by your session key inside the TEE. No wallet popup, no gas. Minimum hold {MIN_HOLD_SECS}s. Flat equity bleeds 1% per minute.
       </p>
     </Card>
   );
 }
 
-/* ------------------------------------------------------------------ Players */
-
-const COLS = "grid-cols-[28px_1fr_auto] sm:grid-cols-[44px_1fr_110px_110px]";
-const COLS_PAY = "grid-cols-[28px_1fr_auto_auto] sm:grid-cols-[44px_1fr_110px_110px_80px]";
+const COLS = "grid-cols-[28px_minmax(0,1fr)_auto] sm:grid-cols-[36px_minmax(0,1fr)_92px_88px]";
+const COLS_PAY = "grid-cols-[28px_minmax(0,1fr)_auto_auto] sm:grid-cols-[36px_minmax(0,1fr)_92px_88px_72px]";
 
 export function PlayersTable({ room, me, payouts = false }: { room: RoomState; me: PublicKey | null; payouts?: boolean }) {
   const pot = room.entryAmount * BigInt(room.seatsFilled);
@@ -402,8 +443,8 @@ export function PlayersTable({ room, me, payouts = false }: { room: RoomState; m
       return (a.rank || 99) - (b.rank || 99) || a.i - b.i;
     });
   return (
-    <Card title={ended ? "Final standings" : `Players · ${room.status >= 2 ? `${room.aliveCount} alive` : `${room.seatsFilled} joined`}`} bodyClassName="p-0">
-      <div className={cx("grid gap-3 border-b border-border px-4 py-2 text-[11px] uppercase tracking-wide text-faint", payouts ? COLS_PAY : COLS)}>
+    <Card title={ended ? "Final standings" : `Leaderboard · ${room.status >= 2 ? `${room.aliveCount} alive` : `${room.seatsFilled} joined`}`} bodyClassName="p-0">
+      <div className={cx("grid gap-3 border-b border-border px-4 py-2 text-[13px] font-medium text-faint", payouts ? COLS_PAY : COLS)}>
         <span>#</span>
         <span>Player</span>
         <span className="hidden sm:block">Status</span>
@@ -426,16 +467,10 @@ export function PlayersTable({ room, me, payouts = false }: { room: RoomState; m
           ) : (
             <Pill>Seat {i + 1}</Pill>
           );
+          const shown = ended || out ? place || "—" : rank || "—";
           return (
-            <li
-              key={p.toBase58()}
-              className={cx(
-                "grid items-center gap-3 border-b border-border px-4 py-2.5 text-[13px] last:border-b-0",
-                payouts ? COLS_PAY : COLS,
-                mine && "bg-accent/[0.06]",
-              )}
-            >
-              <span className={cx("num", finalist ? "text-fg" : "text-faint")}>{ended || out ? place || "—" : rank || "—"}</span>
+            <li key={p.toBase58()} className={cx("grid items-center gap-3 border-b border-border px-4 py-2.5 text-[13px] last:border-b-0", payouts ? COLS_PAY : COLS, mine && "bg-white/[0.04]")}>
+              <span className={cx("num", place === 1 ? "text-white" : finalist ? "text-fg" : "text-faint")}>{shown}</span>
               <a href={explorerAccount(p.toBase58())} target="_blank" rel="noreferrer" className="flex min-w-0 items-center gap-2.5 hover:text-fg">
                 <Identicon pubkey={p} size={22} />
                 <span className="min-w-0">
@@ -451,7 +486,7 @@ export function PlayersTable({ room, me, payouts = false }: { room: RoomState; m
                 {out || ended ? (
                   fmtChips(room.finalEquity[i])
                 ) : room.status >= 2 ? (
-                  <span className="inline-flex items-center gap-1 text-faint">
+                  <span className="inline-flex items-center justify-end gap-1 text-faint">
                     <Lock size={11} /> Sealed
                   </span>
                 ) : (
@@ -470,8 +505,6 @@ export function PlayersTable({ room, me, payouts = false }: { room: RoomState; m
     </Card>
   );
 }
-
-/* ------------------------------------------------------------------ Activity */
 
 export type TxItem = { sig: string; label: string; ms: number; ok: boolean; at: number };
 
