@@ -1,29 +1,30 @@
 import type { Metadata, Viewport } from "next";
-import { Inter, JetBrains_Mono } from "next/font/google";
+import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Providers } from "./providers";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 
-const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
-const mono = JetBrains_Mono({ subsets: ["latin"], variable: "--font-mono-jb" });
+const geist = Geist({ subsets: ["latin"], variable: "--font-geist" });
+const geistMono = Geist_Mono({ subsets: ["latin"], variable: "--font-geist-mono" });
 
 export const metadata: Metadata = {
-  title: "PnL Royale",
-  description: "Battle royale for traders. Hidden positions in a TEE, lowest equity cut every minute, winners split the USDC pot. Fully onchain on Solana + MagicBlock.",
+  title: "PnL Royale: battle royale for traders",
+  description:
+    "Stake USDC, trade live prices with positions sealed in MagicBlock's TEE, survive onchain eliminations every interval, and split the pot on Solana.",
   manifest: "/manifest.webmanifest",
   icons: { icon: "/icon.svg" },
 };
 
-export const viewport: Viewport = { themeColor: "#07070d", width: "device-width", initialScale: 1, maximumScale: 1 };
+export const viewport: Viewport = { themeColor: "#0a0b0e", width: "device-width", initialScale: 1 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${inter.variable} ${mono.variable}`}>
-      <body className="grid-bg font-sans antialiased">
+    <html lang="en" className={`${geist.variable} ${geistMono.variable}`}>
+      <body className="font-sans">
         <Providers>
           <Header />
-          <main className="mx-auto w-full max-w-6xl px-4 pb-24 pt-4">{children}</main>
+          <main className="mx-auto w-full max-w-[1280px] px-4 pb-20 pt-6 sm:px-6">{children}</main>
           <Footer />
         </Providers>
       </body>

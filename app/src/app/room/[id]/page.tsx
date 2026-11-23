@@ -4,8 +4,9 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import { useConnection, useWallet } from "@solana/wallet-adapter-react";
 import { useWalletModal } from "@solana/wallet-adapter-react-ui";
-import { Transaction, type TransactionInstruction } from "@solana/web3.js";
+import { Transaction, type Keypair, type TransactionInstruction } from "@solana/web3.js";
 import { getAssociatedTokenAddressSync } from "@solana/spl-token";
+import { ArrowLeft, Eye, ExternalLink, Info, Trophy, Users, Wallet } from "lucide-react";
 import {
   assetSymbol,
   ixBeginRound,
@@ -26,26 +27,25 @@ import {
   withPriority,
   type RoomState,
 } from "@/lib/royale/client";
-import { IS_DEVNET, MIN_SEATS, RoomStatus, explorerAccount } from "@/lib/royale/constants";
-import { PlayInstantly } from "@/components/PlayInstantly";
+import { IS_DEVNET, MIN_SEATS, RoomStatus, explorerAccount, feedById } from "@/lib/royale/constants";
 import { readableError, requestFaucet, sendEr } from "@/lib/royale/er";
-import { checkpointTs, fmtChips, fmtUsdc, intervalOf, liveEquity, prizeSplit, roundEndTs, short } from "@/lib/royale/game";
+import { checkpointTs, finalistsFor, fmtChips, fmtUsdc, intervalOf, prizeSplit, roundEndTs } from "@/lib/royale/game";
 import { useSession } from "@/hooks/useSession";
 import { useEr } from "@/hooks/useEr";
 import { useNow, useRoomLive } from "@/hooks/useRoomLive";
-import { AliveRing } from "@/components/AliveRing";
-import { StormBanner } from "@/components/StormBanner";
-import { TradePanel } from "@/components/TradePanel";
-import { TxFeed, type TxItem } from "@/components/TxFeed";
 import { TeeBadge } from "@/components/TeeBadge";
+import { PlayInstantly } from "@/components/PlayInstantly";
+import { Identicon, TokenStack } from "@/components/brand";
+import { Activity, ChartPanel, OrderTicket, PlayersTable, PositionCard, RoundProgress, StormCard, mmss, type TxItem } from "@/components/room";
+import { Button, Card, Pill, cx } from "@/components/ui";
 
-const STATUS_LABEL: Record<number, string> = {
-  [RoomStatus.Open]: "Open",
-  [RoomStatus.Starting]: "Starting",
-  [RoomStatus.Live]: "LIVE",
-  [RoomStatus.Ended]: "Ended",
-  [RoomStatus.Settled]: "Paid",
-  [RoomStatus.Cancelled]: "Cancelled",
+const STATUS: Record<number, { label: string; tone: "up" | "down" | "neutral" | "warn" }> = {
+  [RoomStatus.Open]: { label: "Open", tone: "up" },
+  [RoomStatus.Starting]: { label: "Starting", tone: "warn" },
+  [RoomStatus.Live]: { label: "Live", tone: "down" },
+  [RoomStatus.Ended]: { label: "Ended", tone: "neutral" },
+  [RoomStatus.Settled]: { label: "Paid out", tone: "neutral" },
+  [RoomStatus.Cancelled]: { label: "Cancelled", tone: "neutral" },
 };
 
 export default function RoomPage() {
@@ -69,14 +69,23 @@ export default function RoomPage() {
   const seat = room && me ? room.players.findIndex((p) => p.equals(me)) : -1;
   const seated = seat >= 0;
   const [busy, setBusy] = useState(false);
-  const [msg, setMsg] = useState<string | null>(null);
+  const [msg, setMsg] = useState<{ text: string; tone: "info" | "error" } | null>(null);
   const [txs, setTxs] = useState<TxItem[]>([]);
+  const [asset, setAsset] = useState(0);
   const pushTx = (t: TxItem) => setTxs((x) => [t, ...x].slice(0, 50));
+  const info = (text: string) => setMsg({ text, tone: "info" });
+  const fail = (e: unknown) => setMsg({ text: readableError(e), tone: "error" });
+
+  useEffect(() => {
+    if (live.position && live.position.side !== 0) setAsset(live.position.assetIdx);
+    // follow the open position's market once when it loads
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [live.position?.assetIdx, live.position?.side]);
 
   // ---------------- L1 wallet transactions (join / start / settle) ----------------
   const sendL1 = useCallback(
-    async (ixs: TransactionInstruction[], extraSigners: import("@solana/web3.js").Keypair[] = []) => {
-      if (!wallet.publicKey || !wallet.signTransaction) throw new Error("connect a wallet");
+    async (ixs: TransactionInstruction[], extraSigners: Keypair[] = []) => {
+      if (!wallet.publicKey || !wallet.signTransaction) throw new Error("Connect a wallet first.");
       const tx = new Transaction().add(...withPriority(ixs));
       tx.feePayer = wallet.publicKey;
       const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash("confirmed");
@@ -100,8 +109,8 @@ export default function RoomPage() {
       let bal = await connection.getTokenAccountBalance(ata).catch(() => null);
       const lamports = await connection.getBalance(me);
       if (IS_DEVNET && (!bal || BigInt(bal.value.amount) < room.entryAmount || lamports < 12_000_000)) {
-        setMsg("Topping up your wallet with devnet SOL + test USDC…");
-        await requestFaucet(me).catch((e) => setMsg(readableError(e))); // cooldown is fine if balances suffice
+        info("Funding your devnet wallet with SOL and test USDC…");
+        await requestFaucet(me).catch(() => undefined); // a cooldown is fine if balances already suffice
         bal = await connection.getTokenAccountBalance(ata).catch(() => null);
       }
       if (!bal || BigInt(bal.value.amount) < room.entryAmount) {
@@ -112,11 +121,11 @@ export default function RoomPage() {
       const ixs = await ixsJoin(me, room.address, { viewer: kp.publicKey, mint: room.mint });
       const needSession = !(valid && session);
       if (needSession) ixs.push(ixCreateSessionV2(me, kp.publicKey, validUntil, 0));
-      const sig = await sendL1(ixs, needSession ? [kp] : []);
+      await sendL1(ixs, needSession ? [kp] : []);
       if (needSession) commit(kp, validUntil);
-      setMsg(`Joined. Entry escrowed on Solana, seat delegated to the TEE. ${sig.slice(0, 8)}…`);
+      info("You're in. Your entry is in escrow on Solana and your seat is delegated to the TEE.");
     } catch (e) {
-      setMsg(readableError(e));
+      fail(e);
     } finally {
       setBusy(false);
     }
@@ -130,9 +139,9 @@ export default function RoomPage() {
       const validUntil = Math.floor(Date.now() / 1000) + 3600;
       await sendL1([ixCreateSessionV2(me, kp.publicKey, validUntil, 0)], [kp]);
       commit(kp, validUntil);
-      setMsg("1-tap trading enabled for this device (equity view needs the key you joined with).");
+      info("One-tap trading is enabled on this device.");
     } catch (e) {
-      setMsg(readableError(e));
+      fail(e);
     } finally {
       setBusy(false);
     }
@@ -143,10 +152,10 @@ export default function RoomPage() {
     if (!room) return;
     setBusy(true);
     try {
-      const sig = await sendL1([await ixStartRoom(me, room.address)]);
-      setMsg(`Room delegated to the TEE: ${sig.slice(0, 8)}…`);
+      await sendL1([await ixStartRoom(me, room.address)]);
+      info("Room locked and delegated to the TEE. Sealing positions…");
     } catch (e) {
-      setMsg(readableError(e));
+      fail(e);
     } finally {
       setBusy(false);
     }
@@ -159,54 +168,55 @@ export default function RoomPage() {
       const cfg = await connection.getAccountInfo(configPda());
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const feeVault = (coder.accounts.decode("config", cfg!.data as Buffer) as any).feeVault;
-      const sig = await sendL1([await ixSettle(me, room, feeVault)]);
-      setMsg(`Paid out on Solana: ${sig.slice(0, 8)}…`);
+      await sendL1([await ixSettle(me, room, feeVault)]);
+      info("Paid out on Solana.");
     } catch (e) {
-      setMsg(readableError(e));
+      fail(e);
     } finally {
       setBusy(false);
     }
   };
 
   // ---------------- ER transactions (session key, gasless, popup-free) ----------------
+  // `quiet`: background housekeeping (seal, begin, overdue cut, commit). Another client or the
+  // crank often wins the race and ours is rejected harmlessly, so only successes are logged.
   const er_ = useCallback(
-    async (label: string, ixs: TransactionInstruction[]) => {
-      if (!er || !session) throw new Error("no ER session");
+    async (label: string, ixs: TransactionInstruction[], quiet = false) => {
+      if (!er || !session) throw new Error("No rollup session yet.");
       const t0 = performance.now();
       try {
         const sig = await sendEr(er.connection, ixs, [session.kp]);
         pushTx({ sig, label, ms: Math.round(performance.now() - t0), ok: true, at: Date.now() });
         return sig;
       } catch (e) {
-        pushTx({ sig: "", label: `${label}: ${readableError(e)}`, ms: 0, ok: false, at: Date.now() });
+        if (!quiet) pushTx({ sig: "", label: `${label}: ${readableError(e)}`, ms: 0, ok: false, at: Date.now() });
         throw e;
       }
     },
     [er, session],
   );
 
-  const trade = async (side: -1 | 0 | 1, lev: number, asset: number) => {
+  const trade = async (side: -1 | 0 | 1, lev: number, a: number) => {
     if (!room || !me || !session) return;
     setBusy(true);
     try {
-      const ix = await ixSetPosition(session.kp.publicKey, room, me, sessionTokenPda(session.kp.publicKey, me), side, lev, asset);
-      await er_(side === 0 ? "flat" : `${side > 0 ? "long" : "short"} ${assetSymbol(room, asset)} ${lev}×`, [ix]);
+      const ix = await ixSetPosition(session.kp.publicKey, room, me, sessionTokenPda(session.kp.publicKey, me), side, lev, a);
+      await er_(side === 0 ? "Close position" : `${side > 0 ? "Long" : "Short"} ${assetSymbol(room, a)} ${lev}x`, [ix]);
     } catch (e) {
-      setMsg(readableError(e));
+      fail(e);
     } finally {
       setBusy(false);
     }
   };
 
-  // ---------------- Any client keeps the game moving (the program is time-gated + idempotent) ----------------
+  // ---------------- Any seated client keeps the game moving (time-gated + idempotent onchain) ----------------
   const auto = useRef(0);
   useEffect(() => {
     if (!room || !er || !session || !seated) return;
-    const t = Date.now();
-    if (t - auto.current < 3000) return;
+    if (Date.now() - auto.current < 3000) return;
     const go = async (label: string, ixs: TransactionInstruction[]) => {
       auto.current = Date.now();
-      await er_(label, ixs).catch(() => undefined);
+      await er_(label, ixs, true).catch(() => undefined);
     };
     if (live.delegated && room.status === RoomStatus.Starting) {
       (async () => {
@@ -216,260 +226,366 @@ export default function RoomPage() {
             const batch = await Promise.all(
               room.players.slice(i, i + 4).map((p) => ixInitPermission(session.kp.publicKey, room.address, positionPda(room.address, p))),
             );
-            await er_("seal positions", batch).catch(() => undefined);
+            await er_("Seal positions in the TEE", batch, true).catch(() => undefined);
           }
         }
-        await go("begin round", [cuLimit(400_000), await ixBeginRound(session.kp.publicKey, room)]);
+        await go("Begin round", [cuLimit(400_000), await ixBeginRound(session.kp.publicKey, room)]);
       })();
     } else if (room.status === RoomStatus.Live) {
       const due = checkpointTs(room, room.nextCheckpoint);
       const interval = intervalOf(room.startTs, room.intervalSecs, now);
       if (now > due + 3) {
-        ixTick(room).then((ix) => go(`tick (crank backup) #${room.nextCheckpoint}`, [ix]));
+        ixTick(room).then((ix) => go(`Trigger overdue cut ${room.nextCheckpoint}`, [ix]));
       } else if (!((room.stormsRequested >> interval) & 1) && now > checkpointTs(room, interval) + 5 && now < roundEndTs(room)) {
-        ixRequestStorm(room.address).then((ix) => go("request storm", [ix]));
+        ixRequestStorm(room.address).then((ix) => go("Request storm", [ix]));
       }
     } else if (live.delegated && room.status === RoomStatus.Ended) {
-      ixFinalizeRound(session.kp.publicKey, room).then((ix) => go("commit + undelegate", [cuLimit(400_000), ix]));
+      ixFinalizeRound(session.kp.publicKey, room).then((ix) => go("Commit results to Solana", [cuLimit(400_000), ix]));
     }
   }, [room, er, session, seated, live.delegated, now, er_]);
 
-  if (roomId === null) return <div className="card p-6">Bad room id.</div>;
-  if (live.missing) return <div className="card p-6">Room not found on this network.</div>;
-  if (!room) return <div className="card p-6 text-dim">Loading room…</div>;
+  if (roomId === null) return <EmptyState title="Invalid room link" />;
+  if (live.missing) return <EmptyState title="Room not found" body="This room doesn't exist on the current network." />;
+  if (!room) return <EmptyState title="Loading room…" />;
 
+  const status = STATUS[room.status];
   const pot = room.entryAmount * BigInt(room.seatsFilled);
-  const prize = pot - (pot * BigInt(room.feeBps)) / 10_000n;
-  const position = live.position;
-  const myEquity = position ? liveEquity(room, position, live.prices, now) : null;
-  const pnlPct = myEquity !== null ? (Number(myEquity) / 10_000_000_000 - 1) * 100 : 0;
-  const nextCut = room.status === RoomStatus.Live ? checkpointTs(room, room.nextCheckpoint) : 0;
-  const secsToCut = Math.max(0, nextCut - now);
-  const startable =
-    room.status === RoomStatus.Open &&
-    room.seatsFilled >= MIN_SEATS &&
-    (room.seatsFilled === room.maxSeats || now >= room.fillExpiry);
-  const myPlace = seated ? room.placement[seat] : 0;
   const ended = room.status === RoomStatus.Ended || room.status === RoomStatus.Settled;
-  const split = prizeSplit(room.finalistCount);
+  const isLive = room.status === RoomStatus.Live;
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
+    <div className="space-y-5">
+      {/* Room header */}
+      <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <Link href="/" className="text-xs text-dim">← lobby</Link>
-          <h1 className="text-2xl font-black">
-            Room #{room.roomId.toString().slice(-6)}{" "}
-            <span className={`chip align-middle ${room.status === RoomStatus.Live ? "text-short" : "text-dim"}`}>
-              {STATUS_LABEL[room.status]}
+          <Link href="/" className="inline-flex items-center gap-1.5 text-xs text-muted hover:text-fg">
+            <ArrowLeft size={14} /> All rooms
+          </Link>
+          <div className="mt-2 flex items-center gap-3">
+            <TokenStack ids={room.assets} size={26} />
+            <h1 className="text-2xl font-semibold tracking-tight">Room {room.roomId.toString().slice(-6)}</h1>
+            <Pill tone={status.tone} dot={isLive}>
+              {status.label}
+            </Pill>
+          </div>
+          <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-[13px] text-muted">
+            <span>
+              Entry <span className="num text-fg">${fmtUsdc(room.entryAmount)}</span>
             </span>
-          </h1>
-          <div className="text-sm text-dim">
-            {fmtUsdc(room.entryAmount)} USDC entry · pot {fmtUsdc(pot)} · {room.assets.map((_, i) => assetSymbol(room, i)).join(" / ")} ·{" "}
-            {room.intervalSecs}s cuts
+            <span>
+              Pot <span className="num text-fg">${fmtUsdc(pot)}</span>
+            </span>
+            <span>{room.assets.map((id) => feedById(id)?.symbol).join(" · ")}</span>
+            <span>Cut every {room.intervalSecs}s</span>
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <TeeBadge er={er} error={erError} />
-          <Link className="chip" href={`/watch/${room.roomId}`}>spectate</Link>
-          <a className="chip" href={explorerAccount(room.address.toBase58())} target="_blank" rel="noreferrer">room on Solscan</a>
+          <Link href={`/watch/${room.roomId}`}>
+            <Button size="sm">
+              <Eye size={14} /> Spectate
+            </Button>
+          </Link>
+          <a href={explorerAccount(room.address.toBase58())} target="_blank" rel="noreferrer">
+            <Button size="sm">
+              <ExternalLink size={14} /> Solscan
+            </Button>
+          </a>
         </div>
       </div>
 
-      {msg && <div className="card rise border-gold/40 px-4 py-3 text-sm">{msg}</div>}
-
-      {room.status === RoomStatus.Live && <StormBanner room={room} now={now} />}
-
-      <div className="grid gap-4 md:grid-cols-[1fr_1.2fr]">
-        <div className="space-y-4">
-          <div className="card p-4">
-            <AliveRing room={room} me={me} />
-            {room.status === RoomStatus.Live && (
-              <div className={`mt-3 rounded-xl p-3 text-center ${secsToCut < 10 ? "pulse-danger bg-short/10" : "bg-panel2"}`}>
-                <div className="text-xs uppercase tracking-widest text-dim">
-                  {room.nextCheckpoint <= 5 ? `Cut #${room.nextCheckpoint} in` : "Final bell in"}
-                </div>
-                <div className="tabular text-4xl font-black">{secsToCut.toFixed(1)}s</div>
-                <div className="text-xs text-dim">lowest equity is eliminated by an onchain crank</div>
-              </div>
-            )}
-            {room.status === RoomStatus.Open && (
-              <div className="mt-3 space-y-2 text-center">
-                <div className="text-sm text-dim">
-                  {room.seatsFilled}/{room.maxSeats} seats · starts when full or at{" "}
-                  {new Date(room.fillExpiry * 1000).toLocaleTimeString()} with {MIN_SEATS}+
-                </div>
-                {!seated && !me && IS_DEVNET && <PlayInstantly className="w-full py-4 text-lg" />}
-                {!seated && (
-                  <button disabled={busy} onClick={join} className={`btn w-full py-4 text-lg ${me ? "bg-gold text-ink" : "border border-line text-dim"}`}>
-                    {me ? `Join for ${fmtUsdc(room.entryAmount)} ${IS_DEVNET ? "test " : ""}USDC` : "Connect a wallet to join"}
-                  </button>
-                )}
-                {seated && <div className="text-long">You're in. Seat #{seat + 1}.</div>}
-                {startable && (
-                  <button disabled={busy} onClick={start} className="btn w-full border border-gold py-3 text-gold">
-                    Start the royale
-                  </button>
-                )}
-              </div>
-            )}
-            {room.status === RoomStatus.Starting && (
-              <div className="mt-3 text-center text-sm text-dim">Sealing positions inside the TEE and starting the clock…</div>
-            )}
-          </div>
-          {seated && <TxFeed items={txs} token={er?.token ?? null} />}
+      {msg && (
+        <div
+          className={cx(
+            "fade-up flex items-start gap-2.5 rounded-xl border px-4 py-3 text-[13px]",
+            msg.tone === "error" ? "border-down/30 bg-down/5 text-down" : "border-border bg-surface text-fg",
+          )}
+        >
+          <Info size={15} className="mt-0.5 shrink-0" />
+          {msg.text}
         </div>
+      )}
 
-        <div className="space-y-4">
-          {seated && room.status === RoomStatus.Live && (
-            <>
-              <div className="card p-4">
-                <div className="flex items-baseline justify-between">
-                  <div className="text-xs uppercase tracking-widest text-dim">Your equity (sealed in the TEE)</div>
-                  {room.publicRank[seat] > 0 && <div className="chip">rank #{room.publicRank[seat]} at last cut</div>}
-                </div>
-                {myEquity !== null ? (
-                  <>
-                    <div className={`tabular text-5xl font-black ${pnlPct >= 0 ? "text-long" : "text-short"}`}>{fmtChips(myEquity)}</div>
-                    <div className="text-sm text-dim">
-                      {pnlPct >= 0 ? "+" : ""}
-                      {pnlPct.toFixed(2)}% ·{" "}
-                      {position!.side === 0 ? "flat" : `${position!.side > 0 ? "LONG" : "SHORT"} ${assetSymbol(room, position!.assetIdx)} ${position!.leverage}×`}
-                      {" · "}rivals can't see this
-                    </div>
-                  </>
-                ) : (
-                  <div className="text-sm text-dim">
-                    {live.positionHidden ? "Your position is private and this device's key can't read it." : "Reading your position from the TEE…"}
-                  </div>
-                )}
-              </div>
-              {valid ? (
-                <TradePanel room={room} position={position} prices={live.prices} history={live.history} now={now} busy={busy} onTrade={trade} />
-              ) : (
-                <button disabled={busy} onClick={enableSession} className="btn w-full bg-gold py-4 text-ink">
-                  Enable 1-tap trading on this device
-                </button>
-              )}
-            </>
-          )}
-
-          {!seated && room.status === RoomStatus.Live && (
-            <div className="card p-6 text-center text-dim">This royale is live. Positions are sealed in the TEE; watch the cuts land.</div>
-          )}
-
-          {ended && (
-            <div className="card rise p-6 text-center">
-              {seated && myPlace > 0 && myPlace <= room.finalistCount ? (
+      {(room.status === RoomStatus.Open || room.status === RoomStatus.Starting || isLive) && (
+        // One tree for pre-round and live so the chart stays mounted when the round starts.
+        <>
+          {isLive ? <RoundProgress room={room} now={now} /> : null}
+          <div className="grid gap-5 xl:grid-cols-[1fr_380px]">
+            <div className="min-w-0 space-y-5">
+              <ChartPanel room={room} prices={live.prices} asset={asset} onAsset={setAsset} height={isLive ? 460 : 420} />
+              {isLive ? <PlayersTable room={room} me={me} /> : null}
+              {isLive && seated ? <Activity items={txs} token={er?.token ?? null} /> : null}
+            </div>
+            <div className="space-y-5">
+              {!isLive ? (
                 <>
-                  <div className="text-6xl">🏆</div>
-                  <div className="mt-2 text-3xl font-black text-gold">#{myPlace} of {room.seatsFilled}</div>
-                  <div className="mt-1 text-dim">
-                    ≈ {fmtUsdc((prize * BigInt(split[myPlace - 1] ?? 0)) / 100n)} USDC{" "}
-                    {room.status === RoomStatus.Settled ? "paid to your wallet" : "once settled on Solana"}
-                  </div>
+                  <SeatsCard room={room} me={me} now={now} busy={busy} seated={seated} onJoin={join} onStart={start} delegated={live.delegated} />
+                  <PrizeCard room={room} />
                 </>
               ) : seated ? (
                 <>
-                  <div className="text-6xl">💀</div>
-                  <div className="mt-2 text-3xl font-black text-short">Eliminated · #{myPlace}</div>
-                  <div className="mt-1 text-dim">cut at checkpoint {room.elimCheckpoint[seat]} with {fmtChips(room.finalEquity[seat])} chips</div>
+                  <PositionCard room={room} position={live.position} prices={live.prices} now={now} rank={room.publicRank[seat]} />
+                  {valid ? (
+                    <OrderTicket room={room} position={live.position} asset={asset} now={now} busy={busy} onTrade={trade} />
+                  ) : (
+                    <Card title="Trade">
+                      <p className="text-[13px] text-muted">This device doesn&apos;t have your session key. Enable one-tap trading to trade without wallet popups.</p>
+                      <Button variant="primary" className="mt-3 w-full" disabled={busy} onClick={enableSession}>
+                        Enable one-tap trading
+                      </Button>
+                    </Card>
+                  )}
+                  <StormCard room={room} now={now} />
                 </>
               ) : (
-                <div className="text-2xl font-black">Round over</div>
+                <>
+                  <Card title="Spectating">
+                    <p className="text-[13px] leading-relaxed text-muted">
+                      This round is in progress. Positions are sealed inside the TEE, so only rankings at each cut are public.
+                    </p>
+                  </Card>
+                  <StormCard room={room} now={now} />
+                </>
               )}
-              <Results room={room} me={me} />
-              <div className="mt-4 flex flex-wrap justify-center gap-2">
-                {room.status === RoomStatus.Ended && !live.delegated && (
-                  <button disabled={busy} onClick={settle} className="btn bg-gold px-5 py-3 text-ink">Pay out on Solana</button>
-                )}
-                {room.status === RoomStatus.Ended && live.delegated && (
-                  <span className="chip text-dim">committing results to Solana…</span>
-                )}
-                {seated && (
-                  <a
-                    className="btn border border-line px-5 py-3"
-                    target="_blank"
-                    rel="noreferrer"
-                    href={`https://x.com/intent/tweet?text=${encodeURIComponent(
-                      myPlace > 0 && myPlace <= room.finalistCount
-                        ? `Survived a ${room.seatsFilled}-trader PnL Royale and finished #${myPlace} 🏆 Hidden positions in a TEE, cuts by an onchain crank, storms by VRF, paid in USDC on Solana.`
-                        : `Got cut in PnL Royale (#${myPlace} of ${room.seatsFilled}) 💀 Run it back.`,
-                    )}&url=${encodeURIComponent(typeof window !== "undefined" ? window.location.href : "")}`}
-                  >
-                    Share on X
-                  </a>
-                )}
-              </div>
             </div>
-          )}
+          </div>
+        </>
+      )}
 
-          {room.status === RoomStatus.Cancelled && (
-            <div className="card p-6 text-center text-dim">Cancelled. Every entry is refundable in full (the relayer sends refunds automatically).</div>
-          )}
-
-          <Rules room={room} />
+      {ended && (
+        <div className="grid gap-5 xl:grid-cols-[380px_1fr]">
+          <ResultCard room={room} seat={seat} delegated={live.delegated} busy={busy} onSettle={settle} />
+          <div className="space-y-5">
+            <PlayersTable room={room} me={me} payouts />
+            {seated && txs.length > 0 && <Activity items={txs} token={er?.token ?? null} />}
+          </div>
         </div>
-      </div>
+      )}
+
+      {room.status === RoomStatus.Cancelled && (
+        <Card title="Room cancelled">
+          <p className="text-[13px] text-muted">This room didn&apos;t fill in time. Every entry is refundable in full, and the relayer sends refunds automatically.</p>
+        </Card>
+      )}
     </div>
   );
 }
 
-function Results({ room, me }: { room: RoomState; me: import("@solana/web3.js").PublicKey | null }) {
-  if (room.finalistCount === 0) return null;
+function EmptyState({ title, body }: { title: string; body?: string }) {
+  return (
+    <div className="grid place-items-center rounded-[var(--radius-card)] border border-border bg-surface px-6 py-20 text-center">
+      <div className="text-sm text-fg">{title}</div>
+      {body && <div className="mt-1 text-[13px] text-muted">{body}</div>}
+      <Link href="/" className="mt-4">
+        <Button size="sm">
+          <ArrowLeft size={14} /> Back to rooms
+        </Button>
+      </Link>
+    </div>
+  );
+}
+
+function SeatsCard({
+  room,
+  me,
+  now,
+  busy,
+  seated,
+  delegated,
+  onJoin,
+  onStart,
+}: {
+  room: RoomState;
+  me: import("@solana/web3.js").PublicKey | null;
+  now: number;
+  busy: boolean;
+  seated: boolean;
+  delegated: boolean;
+  onJoin: () => void;
+  onStart: () => void;
+}) {
+  const startable =
+    room.status === RoomStatus.Open && room.seatsFilled >= MIN_SEATS && (room.seatsFilled === room.maxSeats || now >= room.fillExpiry);
+  const starting = room.status === RoomStatus.Starting || delegated;
+  return (
+    <Card
+      title={
+        <span className="flex items-center gap-1.5">
+          <Users size={14} /> Seats {room.seatsFilled}/{room.maxSeats}
+        </span>
+      }
+      action={
+        room.status === RoomStatus.Open && (
+          <span className="num text-[11px] text-faint">
+            {room.seatsFilled >= MIN_SEATS ? "Starts when full or in" : "Fill window closes in"} {mmss(room.fillExpiry - now)}
+          </span>
+        )
+      }
+    >
+      <div className="grid grid-cols-4 gap-2">
+        {Array.from({ length: room.maxSeats }, (_, i) => {
+          const p = room.players[i];
+          const mine = !!p && !!me && p.equals(me);
+          return (
+            <div
+              key={i}
+              className={cx(
+                "flex h-14 flex-col items-center justify-center gap-1 rounded-[10px] border text-[11px]",
+                p ? (mine ? "border-accent/50 bg-accent/10" : "border-border bg-surface-2") : "border-dashed border-border text-faint",
+              )}
+              title={p?.toBase58()}
+            >
+              {p ? (
+                <>
+                  <Identicon pubkey={p} size={20} />
+                  <span className="num text-muted">{mine ? "You" : `${p.toBase58().slice(0, 4)}`}</span>
+                </>
+              ) : (
+                "Open"
+              )}
+            </div>
+          );
+        })}
+      </div>
+      <div className="mt-4 space-y-2">
+        {starting ? (
+          <div className="rounded-[10px] border border-border bg-bg px-3 py-3 text-[13px] text-muted">
+            Sealing positions inside the TEE and starting the clock…
+          </div>
+        ) : seated ? (
+          <div className="rounded-[10px] border border-up/20 bg-up/5 px-3 py-3 text-[13px] text-up">You&apos;re in, seat {room.players.findIndex((p) => me && p.equals(me)) + 1}. The round starts automatically.</div>
+        ) : me ? (
+          <Button variant="primary" size="lg" className="w-full" disabled={busy || room.seatsFilled >= room.maxSeats} onClick={onJoin}>
+            {busy ? "Joining…" : `Join for $${fmtUsdc(room.entryAmount)}${IS_DEVNET ? " test USDC" : ""}`}
+          </Button>
+        ) : IS_DEVNET ? (
+          <PlayInstantly size="lg" className="w-full" label="Play instantly to join" />
+        ) : (
+          <Button variant="primary" size="lg" className="w-full" onClick={onJoin}>
+            <Wallet size={16} /> Connect a wallet to join
+          </Button>
+        )}
+        {startable && !starting && (
+          <Button variant="secondary" className="w-full" disabled={busy} onClick={onStart}>
+            Start the round now
+          </Button>
+        )}
+      </div>
+    </Card>
+  );
+}
+
+function PrizeCard({ room }: { room: RoomState }) {
+  const seats = Math.max(room.seatsFilled, MIN_SEATS);
+  const f = finalistsFor(seats);
+  const split = prizeSplit(f);
+  const entry = Number(room.entryAmount) / 1e6;
+  const pot = entry * room.seatsFilled;
+  const full = entry * room.maxSeats;
+  // show what each place pays now, or what it would pay when full before anyone joins
+  const prize = (room.seatsFilled > 0 ? pot : full) * (1 - room.feeBps / 10_000);
+  return (
+    <Card title="Prize pool">
+      <div className="flex items-end justify-between">
+        <div>
+          <div className="text-xs text-muted">Pot so far</div>
+          <div className="num mt-1 text-2xl text-fg">${pot.toFixed(2)}</div>
+        </div>
+        <div className="text-right text-xs text-faint">
+          Up to ${full.toFixed(2)} when full
+          <br />
+          {room.feeBps / 100}% protocol fee
+        </div>
+      </div>
+      <div className="mt-4 space-y-1.5">
+        {split.map((pct, i) => (
+          <div key={i} className="flex items-center gap-3 text-[13px]">
+            <span className="w-14 text-muted">{i === 0 ? "1st" : i === 1 ? "2nd" : "3rd"}</span>
+            <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-surface-3">
+              <div className="h-full rounded-full bg-accent" style={{ width: `${pct}%` }} />
+            </div>
+            <span className="num w-20 text-right text-fg">${((prize * pct) / 100).toFixed(2)}</span>
+          </div>
+        ))}
+      </div>
+      <p className="mt-4 text-[11px] leading-relaxed text-faint">
+        Everyone starts with 10,000 chips. The lowest equity is cut every {room.intervalSecs}s until {f} {f === 1 ? "player remains" : "finalists remain"}.
+      </p>
+    </Card>
+  );
+}
+
+function ResultCard({
+  room,
+  seat,
+  delegated,
+  busy,
+  onSettle,
+}: {
+  room: RoomState;
+  seat: number;
+  delegated: boolean;
+  busy: boolean;
+  onSettle: () => void;
+}) {
   const pot = room.entryAmount * BigInt(room.seatsFilled);
   const prize = pot - (pot * BigInt(room.feeBps)) / 10_000n;
   const split = prizeSplit(room.finalistCount);
-  const rows = room.players.map((p, i) => ({ p, i, place: room.placement[i] })).sort((a, b) => a.place - b.place);
+  const place = seat >= 0 ? room.placement[seat] : 0;
+  const won = place > 0 && place <= room.finalistCount;
+  const payout = won ? (prize * BigInt(split[place - 1] ?? 0)) / 100n : 0n;
+  const share = `https://x.com/intent/tweet?text=${encodeURIComponent(
+    won
+      ? `Finished #${place} of ${room.seatsFilled} in PnL Royale. Hidden positions in a TEE, onchain eliminations, USDC payouts on Solana.`
+      : `Made it to #${place} of ${room.seatsFilled} in PnL Royale. Running it back.`,
+  )}&url=${encodeURIComponent(typeof window !== "undefined" ? window.location.href : "")}`;
   return (
-    <div className="mt-4 overflow-hidden rounded-xl border border-line text-left text-sm">
-      <div className="grid grid-cols-[3rem_1fr_5rem_6rem_5rem] gap-2 bg-panel2 px-3 py-2 text-[11px] uppercase tracking-widest text-dim">
-        <span>#</span>
-        <span>player</span>
-        <span>out at</span>
-        <span className="text-right">chips</span>
-        <span className="text-right">USDC</span>
+    <Card>
+      <div className="flex flex-col items-center py-4 text-center">
+        <span className={cx("grid h-14 w-14 place-items-center rounded-2xl", won ? "bg-accent/15 text-[#a99fff]" : "bg-surface-2 text-faint")}>
+          <Trophy size={26} strokeWidth={1.75} />
+        </span>
+        {seat >= 0 ? (
+          <>
+            <div className="mt-4 text-xs text-muted">{won ? "You finished" : "Eliminated"}</div>
+            <div className="mt-1 text-3xl font-semibold tracking-tight">
+              #{place} <span className="text-lg font-normal text-faint">of {room.seatsFilled}</span>
+            </div>
+            {won ? (
+              <div className="num mt-2 text-lg text-up">+${fmtUsdc(payout)}</div>
+            ) : (
+              <div className="mt-2 text-[13px] text-muted">
+                Cut at interval {room.elimCheckpoint[seat]} with {fmtChips(room.finalEquity[seat])} chips
+              </div>
+            )}
+            <div className="mt-1 text-xs text-faint">
+              {room.status === RoomStatus.Settled ? (won ? "Paid to your wallet on Solana" : "Round settled on Solana") : delegated ? "Committing results to Solana…" : "Awaiting payout"}
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="mt-4 text-xl font-semibold tracking-tight">Round complete</div>
+            <div className="mt-1 text-xs text-faint">{room.status === RoomStatus.Settled ? "Paid out on Solana" : "Awaiting payout"}</div>
+          </>
+        )}
       </div>
-      {rows.map(({ p, i, place }) => {
-        const finalist = place <= room.finalistCount;
-        const mine = me && p.equals(me);
-        return (
-          <div
-            key={p.toBase58()}
-            className={`grid grid-cols-[3rem_1fr_5rem_6rem_5rem] gap-2 border-t border-line/60 px-3 py-2 ${mine ? "bg-white/5" : ""}`}
-          >
-            <span className={finalist ? "font-bold text-gold" : "text-dim"}>#{place}</span>
-            <a className="truncate font-mono underline decoration-dotted" href={explorerAccount(p.toBase58())} target="_blank" rel="noreferrer">
-              {short(p)}
-              {mine ? " (you)" : ""}
-            </a>
-            <span className="text-dim">{finalist ? "final" : `cut ${room.elimCheckpoint[i]}`}</span>
-            <span className="tabular text-right">{fmtChips(room.finalEquity[i])}</span>
-            <span className={`tabular text-right ${finalist ? "text-long" : "text-dim"}`}>
-              {finalist ? fmtUsdc((prize * BigInt(split[place - 1] ?? 0)) / 100n) : "—"}
-            </span>
-          </div>
-        );
-      })}
-      <div className="border-t border-line/60 px-3 py-2 text-[11px] text-dim">
-        Pot {fmtUsdc(pot)} · fee {room.feeBps / 100}% · ties pool their shares · every trade is public on Solana now
+      <div className="mt-2 grid gap-2">
+        {room.status === RoomStatus.Ended && !delegated && (
+          <Button variant="primary" disabled={busy} onClick={onSettle}>
+            Pay out winners on Solana
+          </Button>
+        )}
+        {seat >= 0 && (
+          <a href={share} target="_blank" rel="noreferrer">
+            <Button className="w-full">Share result</Button>
+          </a>
+        )}
+        <Link href="/">
+          <Button variant="ghost" className="w-full">
+            Play another round
+          </Button>
+        </Link>
       </div>
-    </div>
-  );
-}
-
-function Rules({ room }: { room: RoomState }) {
-  return (
-    <details className="card p-4 text-sm text-dim">
-      <summary className="cursor-pointer font-bold text-white">Rules</summary>
-      <ul className="mt-2 list-disc space-y-1 pl-5">
-        <li>Everyone starts with 10,000 chips. One position at a time: long, short or flat, 1–10× (25× in a Surge).</li>
-        <li>Every {room.intervalSecs}s an onchain crank cuts the lowest equity. Liquidated (equity ≤ 0) players are cut too.</li>
-        <li>Flat isn't safe: it bleeds 1%/min. Each open pays 5 bps of notional. 2 s minimum hold.</li>
-        <li>Positions are sealed in MagicBlock's TEE: only you can read yours until the round ends.</li>
-        <li>A VRF storm changes the rules each minute: Spotlight 2× PnL, Leverage Surge, Freeze, Zone Shrink.</li>
-        <li>Finalists split the pot minus a {room.feeBps / 100}% fee: 60/30/10 (3), 70/30 (2) or 100%. Paid in USDC on Solana.</li>
-      </ul>
-    </details>
+    </Card>
   );
 }

@@ -1,45 +1,96 @@
 @import "tailwindcss";
 
+/* One palette: neutral surfaces, trading up/down, one accent. */
 @theme {
-  --color-ink: #07070d;
-  --color-panel: #0f0f1a;
-  --color-panel2: #161627;
-  --color-line: #25253a;
-  --color-dim: #8a8aa6;
-  --color-long: #22e58a;
-  --color-short: #ff3b6b;
-  --color-gold: #ffc940;
-  --color-storm: #a970ff;
-  --color-tee: #3ad6ff;
-  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
-  --font-mono: var(--font-mono-jb), ui-monospace, monospace;
+  --color-bg: #0a0b0e;
+  --color-surface: #111318;
+  --color-surface-2: #171a20;
+  --color-surface-3: #1d2128;
+  --color-border: #22262e;
+  --color-border-strong: #2f343e;
+  --color-fg: #e7e9ec;
+  --color-muted: #8b929d;
+  --color-faint: #5d646f;
+  --color-up: #0ecb81;
+  --color-up-strong: #0bb574;
+  --color-down: #f6465d;
+  --color-down-strong: #e03a50;
+  --color-accent: #7c6cff;
+  --color-accent-strong: #6a59f5;
+  --color-warn: #f0b90b;
+  --font-sans: var(--font-geist), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+  --radius-card: 14px;
 }
 
-:root { color-scheme: dark; }
-html, body { background: var(--color-ink); color: #ececf4; }
-body { min-height: 100dvh; -webkit-tap-highlight-color: transparent; }
-
-.grid-bg {
-  background-image:
-    radial-gradient(ellipse at 50% -10%, rgba(169,112,255,0.18), transparent 55%),
-    linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px);
-  background-size: 100% 100%, 32px 32px, 32px 32px;
+:root {
+  color-scheme: dark;
 }
-.card { background: var(--color-panel); border: 1px solid var(--color-line); border-radius: 18px; }
-.chip { border: 1px solid var(--color-line); border-radius: 999px; padding: 2px 10px; font-size: 12px; }
-.btn { border-radius: 14px; font-weight: 700; letter-spacing: 0.02em; transition: transform .08s ease, opacity .15s, box-shadow .2s; }
-.btn:active { transform: scale(0.97); }
-.btn:disabled { opacity: .4; cursor: not-allowed; }
-.glow-long { box-shadow: 0 0 0 1px rgba(34,229,138,.5), 0 0 32px -6px rgba(34,229,138,.7); }
-.glow-short { box-shadow: 0 0 0 1px rgba(255,59,107,.5), 0 0 32px -6px rgba(255,59,107,.7); }
-.glow-storm { box-shadow: 0 0 0 1px rgba(169,112,255,.6), 0 0 40px -8px rgba(169,112,255,.8); }
-.tabular { font-variant-numeric: tabular-nums; }
-@keyframes pulse-ring { 0% { box-shadow: 0 0 0 0 rgba(255,59,107,.6);} 100% { box-shadow: 0 0 0 14px rgba(255,59,107,0);} }
-.pulse-danger { animation: pulse-ring 1.2s infinite; }
-@keyframes rise { from { opacity: 0; transform: translateY(8px);} to { opacity: 1; transform: none;} }
-.rise { animation: rise .35s ease both; }
-@keyframes flash { 0% { background: rgba(169,112,255,.35);} 100% { background: transparent;} }
-.flash { animation: flash 1.2s ease; }
-.wallet-adapter-button { font-family: inherit !important; height: 40px !important; border-radius: 12px !important; font-size: 14px !important; background: #1e1e33 !important; }
-.wallet-adapter-button:hover { background: #2a2a45 !important; }
+html,
+body {
+  background: var(--color-bg);
+  color: var(--color-fg);
+}
+body {
+  min-height: 100dvh;
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.num {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+/* Wallet adapter button, restyled to match the system */
+.wallet-adapter-button {
+  font-family: var(--font-sans) !important;
+  font-weight: 500 !important;
+  font-size: 14px !important;
+  height: 36px !important;
+  padding: 0 14px !important;
+  border-radius: 10px !important;
+  background: var(--color-surface-2) !important;
+  border: 1px solid var(--color-border) !important;
+  color: var(--color-fg) !important;
+}
+.wallet-adapter-button:not([disabled]):hover {
+  background: var(--color-surface-3) !important;
+}
+.wallet-adapter-button-start-icon img,
+.wallet-adapter-button-start-icon {
+  width: 18px !important;
+  height: 18px !important;
+}
+.wallet-adapter-modal-wrapper {
+  background: var(--color-surface) !important;
+  border: 1px solid var(--color-border) !important;
+  font-family: var(--font-sans) !important;
+}
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.fade-up {
+  animation: fade-up 0.3s ease both;
+}
+@keyframes pulse-dot {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+.pulse-dot {
+  animation: pulse-dot 1.6s ease-in-out infinite;
+}
