@@ -81,6 +81,8 @@ export const SEEDS = {
 export const STARTING_CHIPS = 10_000_000_000n;
 export const CHIP_DECIMALS = 6;
 export const MIN_SEATS = 4;
+/** Devnet: house bots seated behind the first human, so every room reaches MIN_SEATS. */
+export const BOT_COUNT = 3;
 export const MAX_SEATS = 16;
 export const CHECKPOINTS = 5;
 export const FINAL_CHECKPOINT = 6;

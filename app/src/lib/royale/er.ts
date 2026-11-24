@@ -30,12 +30,13 @@ const keypairSigner = (kp: Keypair) => async (msg: Uint8Array) => nacl.sign.deta
  */
 export async function connectEr(
   signer: { publicKey: PublicKey; signMessage: (m: Uint8Array) => Promise<Uint8Array> } | Keypair,
+  opts: { attest?: boolean } = {},
 ): Promise<ErLink> {
   if (!IS_TEE) {
     return { connection: new Connection(ER_RPC, { wsEndpoint: ER_WS, commitment: "confirmed" }), token: null, expiresAt: Infinity, attested: null };
   }
   const s = signer instanceof Keypair ? { publicKey: signer.publicKey, signMessage: keypairSigner(signer) } : signer;
-  const attested = await verifyTee();
+  const attested = opts.attest === false ? null : await verifyTee();
   const auth = await getAuthToken(ER_RPC, s.publicKey, s.signMessage);
   const token = auth.token;
   // The SDK returns milliseconds; normalise to unix seconds.
