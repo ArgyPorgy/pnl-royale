@@ -8,6 +8,7 @@ import { FREEZE_SECS, LEVERAGES, MIN_HOLD_SECS, STORM_COPY, StormKind, SURGE_LEV
 import { checkpointTs, fmtChips, fmtPrice, fmtUsdc, intervalOf, liveEquity, prizeSplit, short, stormFor } from "@/lib/royale/game";
 import { TVChart, type TvInterval } from "./TVChart";
 import { OracleChart } from "./OracleChart";
+import { useBots } from "@/hooks/useBots";
 import { Identicon, TokenIcon } from "./brand";
 import { Button, Card, Pill, Row, Segmented, cx } from "./ui";
 
@@ -433,6 +434,7 @@ export function PlayersTable({ room, me, payouts = false }: { room: RoomState; m
   const prize = pot - (pot * BigInt(room.feeBps)) / 10_000n;
   const split = prizeSplit(room.finalistCount);
   const ended = room.status >= 3 && room.finalistCount > 0;
+  const bots = useBots();
   const rows = room.players
     .map((p, i) => ({ p, i, out: room.elimCheckpoint[i], rank: room.publicRank[i], place: room.placement[i] }))
     .sort((a, b) => {
@@ -453,6 +455,7 @@ export function PlayersTable({ room, me, payouts = false }: { room: RoomState; m
       <ul>
         {rows.map(({ p, i, out, rank, place }) => {
           const mine = !!me && p.equals(me);
+          const bot = bots.get(p.toBase58());
           const finalist = ended && place > 0 && place <= room.finalistCount;
           const statusPill = finalist ? (
             <Pill tone={place === 1 ? "accent" : "neutral"}>
@@ -474,8 +477,9 @@ export function PlayersTable({ room, me, payouts = false }: { room: RoomState; m
                 <Identicon pubkey={p} size={22} />
                 <span className="min-w-0">
                   <span className="flex items-center gap-2">
-                    <span className="num truncate text-fg">{short(p)}</span>
+                    <span className={cx("truncate text-fg", !bot && "num")}>{bot ?? short(p)}</span>
                     {mine && <Pill tone="accent">You</Pill>}
+                    {bot && <Pill>Bot</Pill>}
                   </span>
                   <span className="mt-1 block sm:hidden">{statusPill}</span>
                 </span>

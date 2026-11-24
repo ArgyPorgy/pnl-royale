@@ -6,7 +6,7 @@ import { useConnection, useWallet } from "@solana/wallet-adapter-react";
 import { useWalletModal } from "@solana/wallet-adapter-react-ui";
 import { Transaction, type Keypair, type TransactionInstruction } from "@solana/web3.js";
 import { getAssociatedTokenAddressSync } from "@solana/spl-token";
-import { ArrowLeft, Eye, ExternalLink, Info, Trophy, Users, Wallet } from "lucide-react";
+import { ArrowLeft, Bot, Check, Copy, Eye, ExternalLink, Info, Play, Trophy, Users, Wallet } from "lucide-react";
 import {
   assetSymbol,
   ixBeginRound,
@@ -34,6 +34,7 @@ import { checkpointTs, finalistsFor, fmtUsdc, intervalOf, prizeSplit, roundEndTs
 import { useSession } from "@/hooks/useSession";
 import { useEr } from "@/hooks/useEr";
 import { useNow, useRoomLive } from "@/hooks/useRoomLive";
+import { botsPending, useBotDriver, useBots } from "@/hooks/useBots";
 import { TeeBadge } from "@/components/TeeBadge";
 import { PlayInstantly } from "@/components/PlayInstantly";
 import { Identicon, TokenStack } from "@/components/brand";
@@ -77,6 +78,8 @@ export default function RoomPage() {
     setPreviewKey(new URLSearchParams(window.location.search).get("preview"));
   }, []);
   const preview = useMemo(() => buildPreview(previewKey), [previewKey]);
+  const bots = useBots();
+  const botError = useBotDriver(preview ? null : room, live.delegated, me, bots);
   const view = preview?.room ?? room;
   const viewMe = preview ? preview.me : me;
   const viewSeat = view && viewMe ? view.players.findIndex((p) => p.equals(viewMe)) : -1;
@@ -343,7 +346,18 @@ export default function RoomPage() {
             <div className="space-y-5">
               {!isLive ? (
                 <>
-                  <SeatsCard room={view} me={viewMe} now={now} busy={busy} seated={playing} onJoin={join} onStart={start} delegated={viewDelegated} />
+                  <SeatsCard
+                    room={view}
+                    me={viewMe}
+                    now={now}
+                    busy={busy}
+                    seated={playing}
+                    delegated={viewDelegated}
+                    bots={bots}
+                    botError={botError}
+                    onJoin={join}
+                    onStart={start}
+                  />
                   <PrizeCard room={view} />
                 </>
               ) : playing ? (
@@ -421,6 +435,8 @@ function SeatsCard({
   busy,
   seated,
   delegated,
+  bots,
+  botError,
   onJoin,
   onStart,
 }: {
@@ -430,12 +446,35 @@ function SeatsCard({
   busy: boolean;
   seated: boolean;
   delegated: boolean;
+  bots: ReadonlyMap<string, string>;
+  botError: string | null;
   onJoin: () => void;
   onStart: () => void;
 }) {
-  const startable =
-    room.status === RoomStatus.Open && room.seatsFilled >= MIN_SEATS && (room.seatsFilled === room.maxSeats || now >= room.fillExpiry);
   const starting = room.status === RoomStatus.Starting || delegated;
+  const open = room.status === RoomStatus.Open && !starting;
+  const host = !!me && room.creator.equals(me);
+  const enough = room.seatsFilled >= MIN_SEATS;
+  const full = room.seatsFilled === room.maxSeats;
+  const closed = now >= room.fillExpiry;
+  // The program's rule: four seats, and then the host at any time or anyone once full or timed out.
+  const startable = open && enough && (host || full || closed);
+  const joining = open && seated ? botsPending(room, bots) : 0;
+  const line = !open
+    ? null
+    : startable
+      ? full
+        ? "Every seat is taken."
+        : host && !closed
+          ? "Start now, or wait for more players."
+          : "The join window has closed."
+      : !enough
+        ? joining > 0
+          ? botError
+            ? `Bots can't join yet: ${botError}`
+            : `${joining} bot${joining === 1 ? " is" : "s are"} taking a seat.`
+          : `Needs ${MIN_SEATS} players to start.`
+        : `Waiting for the host. Opens to everyone in ${mmss(room.fillExpiry - now)}.`;
   return (
     <Card
       title={
@@ -443,18 +482,14 @@ function SeatsCard({
           <Users size={14} /> Seats {room.seatsFilled}/{room.maxSeats}
         </span>
       }
-      action={
-        room.status === RoomStatus.Open && (
-          <span className="num text-[11px] text-faint">
-            {room.seatsFilled >= MIN_SEATS ? "Starts when full or in" : "Fill window closes in"} {mmss(room.fillExpiry - now)}
-          </span>
-        )
-      }
+      action={open && !closed && !full && <span className="num text-[11px] text-faint">Joining closes in {mmss(room.fillExpiry - now)}</span>}
     >
       <div className="grid grid-cols-4 gap-2">
         {Array.from({ length: room.maxSeats }, (_, i) => {
           const p = room.players[i];
           const mine = !!p && !!me && p.equals(me);
+          const bot = p ? bots.get(p.toBase58()) : undefined;
+          const incoming = !p && i < room.seatsFilled + joining && !botError;
           return (
             <div
               key={i}
@@ -462,13 +497,18 @@ function SeatsCard({
                 "flex h-16 flex-col items-center justify-center gap-1 rounded-xl border text-[11px]",
                 p ? (mine ? "border-white/30 bg-white/10" : "border-white/10 bg-white/5") : "border-dashed border-white/10 text-faint",
               )}
-              title={p?.toBase58()}
+              title={p ? (bot ? `Bot "${bot}" · ${p.toBase58()}` : p.toBase58()) : undefined}
             >
               {p ? (
                 <>
                   <Identicon pubkey={p} size={20} />
-                  <span className="num text-muted">{mine ? "You" : `${p.toBase58().slice(0, 4)}`}</span>
+                  <span className={cx("flex items-center gap-1 text-muted", !bot && "num")}>
+                    {bot && <Bot size={11} />}
+                    {mine ? "You" : (bot ?? p.toBase58().slice(0, 4))}
+                  </span>
                 </>
+              ) : incoming ? (
+                <span className="skeleton h-3 w-10" aria-label="Bot joining" />
               ) : (
                 "Open"
               )}
@@ -481,8 +521,8 @@ function SeatsCard({
           <div className="subhead rounded-[10px] border border-border bg-bg px-3 py-3 text-xl text-white">Starting.</div>
         ) : seated ? (
           <div className="subhead rounded-[10px] border border-up/20 bg-up/5 px-3 py-3 text-xl text-up">You&apos;re in. Seat {room.players.findIndex((p) => me && p.equals(me)) + 1}.</div>
-        ) : me ? (
-          <Button variant="primary" size="lg" className="w-full" disabled={busy || room.seatsFilled >= room.maxSeats} onClick={onJoin}>
+        ) : full || closed ? null : me ? (
+          <Button variant="primary" size="lg" className="w-full" disabled={busy} onClick={onJoin}>
             {busy ? "Joining…" : `Join for $${fmtUsdc(room.entryAmount)}${IS_DEVNET ? " test USDC" : ""}`}
           </Button>
         ) : IS_DEVNET ? (
@@ -492,13 +532,43 @@ function SeatsCard({
             <Wallet size={16} /> Connect a wallet to join
           </Button>
         )}
-        {startable && !starting && (
-          <Button variant="secondary" className="w-full" disabled={busy} onClick={onStart}>
-            Start the round now
+        {open && me && (startable || (host && seated)) && (
+          <Button
+            variant={seated || full || closed ? "primary" : "secondary"}
+            size="lg"
+            className="w-full"
+            disabled={busy || !startable}
+            onClick={onStart}
+          >
+            <Play size={16} /> {busy && seated ? "Starting…" : `Start with ${Math.max(room.seatsFilled, MIN_SEATS)} players`}
           </Button>
         )}
+        {line && <p className="text-center text-xs text-muted">{line}</p>}
+        {open && !full && !closed && <InviteLink />}
       </div>
     </Card>
+  );
+}
+
+function InviteLink() {
+  const [copied, setCopied] = useState(false);
+  return (
+    <Button
+      variant="ghost"
+      size="sm"
+      className="w-full"
+      onClick={() =>
+        navigator.clipboard
+          ?.writeText(window.location.href.split("?")[0])
+          .then(() => {
+            setCopied(true);
+            setTimeout(() => setCopied(false), 2000);
+          })
+          .catch(() => undefined)
+      }
+    >
+      {copied ? <Check size={14} /> : <Copy size={14} />} {copied ? "Link copied" : "Copy invite link"}
+    </Button>
   );
 }
 
