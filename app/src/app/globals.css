@@ -81,10 +81,12 @@ body {
 
 .subhead {
   font-family: var(--font-sub);
-  font-weight: 500;
-  letter-spacing: -0.04em;
+  font-weight: 400;
+  font-synthesis: none;
+  text-shadow: none;
+  letter-spacing: 0.01em;
   text-transform: none;
-  line-height: 1.15;
+  line-height: 1.2;
 }
 
 .balance {
@@ -97,8 +99,10 @@ body {
 .kicker {
   font-family: var(--font-sub);
   font-size: 13px;
-  font-weight: 500;
-  letter-spacing: -0.02em;
+  font-weight: 400;
+  font-synthesis: none;
+  text-shadow: none;
+  letter-spacing: 0.01em;
   text-transform: none;
   color: var(--color-muted);
 }

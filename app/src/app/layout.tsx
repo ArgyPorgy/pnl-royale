@@ -9,7 +9,7 @@ import { Footer } from "@/components/Footer";
 const outfit = Outfit({ subsets: ["latin"], variable: "--font-outfit" });
 // BBH Bartle is on Google Fonts but not in this Next.js release's font catalog yet.
 const bartle = localFont({ src: "../fonts/BBHBartle.ttf", variable: "--font-display-face", weight: "400", display: "swap" });
-const grotesk = Space_Grotesk({ subsets: ["latin"], variable: "--font-subhead" });
+const grotesk = Space_Grotesk({ subsets: ["latin"], weight: "400", variable: "--font-subhead" });
 const jetbrains = JetBrains_Mono({ subsets: ["latin"], variable: "--font-jetbrains" });
 
 const description =
