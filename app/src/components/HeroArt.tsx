@@ -1,5 +1,9 @@
-// Illustrated round: candles, three equity traces, one elimination at the cut line.
-// Deterministic so server and client render the same picture.
+"use client";
+
+import { useEffect, useRef, useState } from "react";
+import { cx } from "./ui";
+
+// Illustrated round. The chart is deterministic. The footer clock is client-only.
 
 function walk(seed: number, n: number, start: number, vol: number, drift = 0) {
   let x = seed;
@@ -16,7 +20,54 @@ function walk(seed: number, n: number, start: number, vol: number, drift = 0) {
   return out;
 }
 
+const CUTS = 7;
+const START_ALIVE = 8;
+const ROUND_SECS = 12;
+/** Alive at cuts 1 through 7. Drops every cut and is 1 on the last. */
+const ALIVE_AT = [8, 7, 6, 5, 4, 2, 1];
+
+const clock = (s: number) => `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
+
 export function HeroArt() {
+  const [cut, setCut] = useState(1);
+  const [left, setLeft] = useState(ROUND_SECS);
+  const [book, setBook] = useState<{ equity: number; dir: -1 | 0 | 1 }>({ equity: 12480, dir: 0 });
+  const [reduce, setReduce] = useState(false);
+  const cutRef = useRef(1);
+  const leftRef = useRef(ROUND_SECS);
+
+  useEffect(() => {
+    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const apply = () => setReduce(mq.matches);
+    apply();
+    mq.addEventListener("change", apply);
+    return () => mq.removeEventListener("change", apply);
+  }, []);
+
+  useEffect(() => {
+    if (reduce) return;
+    const id = window.setInterval(() => {
+      if (leftRef.current <= 0) {
+        const next = cutRef.current >= CUTS ? 1 : cutRef.current + 1;
+        cutRef.current = next;
+        leftRef.current = ROUND_SECS;
+        setCut(next);
+        setLeft(ROUND_SECS);
+      } else {
+        leftRef.current -= 1;
+        setLeft(leftRef.current);
+      }
+      setBook((cur) => {
+        const delta = Math.round((Math.random() - 0.48) * 80);
+        const equity = Math.min(15999, Math.max(10000, cur.equity + delta));
+        const dir = equity > cur.equity ? 1 : equity < cur.equity ? -1 : 0;
+        return { equity, dir };
+      });
+    }, 1000);
+    return () => window.clearInterval(id);
+  }, [reduce]);
+
+  const alive = ALIVE_AT[cut - 1] ?? START_ALIVE;
   const W = 640;
   const H = 420;
   const n = 36;
@@ -47,7 +98,11 @@ export function HeroArt() {
           <span className="pulse-dot h-1.5 w-1.5 rounded-full bg-down" />
           <span className="kicker">Illustrated round</span>
         </div>
-        <div className="num text-xs text-faint">CUT 3 · 00:42</div>
+        <div className="num text-xs text-faint">
+          Cut <span className="inline-block w-[1ch] text-center">{cut}</span>
+          <span className="px-1">·</span>
+          <span className="inline-block w-[5ch] text-left">{clock(left)}</span>
+        </div>
       </div>
       <svg viewBox={`0 0 ${W} ${H}`} className="relative block w-full" role="img" aria-label="Illustration of a trading round with a cut line">
         {Array.from({ length: 6 }, (_, i) => (
@@ -85,13 +140,13 @@ export function HeroArt() {
       </svg>
       <div className="relative grid grid-cols-3 border-t border-border">
         {[
-          ["Alive", "8 of 8", "text-fg"],
-          ["Your equity", "12,480", "text-white"],
-          ["Next cut", "00:42", "text-fg"],
+          ["Alive", `${alive} of ${START_ALIVE}`, "text-white"],
+          ["Your equity", book.equity.toLocaleString("en-US"), book.dir > 0 ? "text-up" : book.dir < 0 ? "text-down" : "text-white"],
+          ["Next cut", clock(left), "text-white"],
         ].map(([k, v, c]) => (
           <div key={k} className="border-r border-border px-4 py-3 last:border-r-0">
             <div className="text-[11px] text-faint">{k}</div>
-            <div className={`num mt-0.5 text-sm ${c}`}>{v}</div>
+            <div className={cx("num mt-0.5 inline-block min-w-[6.5ch] text-left text-sm tabular-nums transition-colors", c)}>{v}</div>
           </div>
         ))}
       </div>
