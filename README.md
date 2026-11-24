@@ -6,11 +6,7 @@ Built for MagicBlock Solana Blitz v10 (Entertainment Finance). **Live on Solana 
 
 ### Try it
 
-Open the app and click **⚡ Play instantly**. A devnet burner wallet is created in your browser, and the built-in faucet tops it up with devnet SOL and test USDC when you create or join a room. Phantom and Backpack on devnet work too. To get opponents:
-
-```bash
-source target/e2e-devnet.env && ROOM_ID=<room id from the URL> BOTS=3 npx tsx scripts/bots.ts
-```
+Open the app and click **⚡ Play instantly**. A devnet burner wallet is created in your browser, and the built-in faucet tops it up with devnet SOL and test USDC when you create or join a room. Phantom and Backpack on devnet work too. When you take a seat, **three labelled house bots join automatically**, so every room reaches the four-player minimum. Invite more people with the room link, or press **Start** as the room's host at any point from four players up.
 
 Demo script: [`docs/DEMO.md`](docs/DEMO.md) · Submission copy: [`docs/SUBMISSION.md`](docs/SUBMISSION.md)
 
@@ -59,13 +55,14 @@ Everything below runs with `npm run test:program`.
 
 **Unit tests (21, `programs/royale/src/game.rs`, `state.rs`):** mark-to-market, liquidation, zone bleed, spotlight, spread, cut schedule for 4–16 seats (16 → 3/3/3/2/2), tie-break hash, payouts with tie pooling and dust, fee math, Elo, storm derivation, freeze/leverage rules, overflow bounds, account sizes.
 
-**MagicSVM integration tests (6, `tests-magicsvm/tests/round.rs`):** the compiled `royale.so` runs in-process on a base ledger plus an ephemeral ledger, using the real Delegation, Magic, Permission and VRF programs:
+**MagicSVM integration tests (7, `tests-magicsvm/tests/round.rs`):** the compiled `royale.so` runs in-process on a base ledger plus an ephemeral ledger, using the real Delegation, Magic, Permission and VRF programs:
 
 | Test | Proves |
 |---|---|
 | `full_private_round_pays_out_on_l1` | 8 players: USDC escrow → delegate to ER → owner-only permissions → **a rival can't read your position, you and your session key can** → popup-free trades → hold-time and auth rejections → early tick is a no-op → **crank-executed cuts** → **VRF storms land via authenticated callback** → 3 finalists → commit + undelegate → `settle` pays **4.56 / 2.28 / 0.76 USDC + 0.40 fee = 8.00 pot exactly** → double-settle rejected → Elo → rent reclaim |
 | `sixteen_seats_cut_schedule_and_compute_budget` | alive after each minute 13, 10, 7, 5, 3 (spec schedule). Worst-case crank `tick` **84k CU**, `finalize_round` 113k CU (of 200k) |
 | `four_player_room_ends_early_with_single_winner` | 4 seats end when 1 remains. Winner gets 95% of $4. Payout to a loser's ATA is rejected |
+| `host_starts_early_with_four_seats` | an 8-seat room with 3 players can't start; with 4, a player who isn't the host is rejected and the host succeeds. The short-handed round runs to one finalist |
 | `session_key_trades_without_wallet_popups` | the real session-keys program (dumped from mainnet): a `SessionTokenV2` trades for its owner, can't touch another player, is useless without a token, and is rejected after expiry |
 | `unfilled_room_refunds_everyone` | no start short-handed, no refund before expiry, full refunds after, idempotent, positions released from the ER and closed |
 | `decodes_live_mainnet_tee_feed_bytes` | the oracle decoder accepts a real SOL/USD account dumped from the mainnet TEE (and rejects wrong addresses) |
@@ -98,7 +95,7 @@ Everything below runs with `npm run test:program`.
 
 1. **`create_room`** (L1): entry, seats (4–16), 1–3 whitelisted assets, interval (15–300 s, default 60), private flag. Creates the USDC vault PDA.
 2. **`join_room` + `delegate_position` + `create_session_v2`** (L1, **one transaction, one popup**): escrow the entry, init the Position (pre-funded for permission rent), delegate it to the TEE, and register a 1-hour browser session key. The session key is stored as the position's **viewer**.
-3. **`start_room`** (L1, anyone): when full, or at fill expiry with 4 or more seats. Locks the roster and delegates the Room.
+3. **`start_room`** (L1): needs 4 or more seats. The room's creator may start at any time; anyone may once the room is full or the fill window has passed. Locks the roster and delegates the Room.
 4. **`init_permission`** (ER, anyone, idempotent): owner-only `EphemeralPermission` with members `[owner, viewer]`.
 5. **`begin_round`** (ER, anyone): starts the clock and schedules two crank tasks with the **Room PDA as task authority**: `tick` and `request_storm`.
 6. **`set_position(side, lev, asset)`** (ER, session key): closes at the oracle price (realizing PnL or zone bleed), opens the new position, and charges 5 bps on notional. Enforces a 2 s hold, the leverage cap (25× during a Surge) and the Freeze side.
@@ -174,7 +171,7 @@ npm run build:program      # SBF build + IDL (scripts/build.sh), copies IDL into
 ```
 
 ```bash
-npm run test:program       # 21 unit + 6 MagicSVM integration tests
+npm run test:program       # 21 unit + 7 MagicSVM integration tests
 ```
 
 ```bash
@@ -243,7 +240,7 @@ cp app/.env.example app/.env.local && npm run dev   # http://localhost:3000
 ```
 programs/royale/src/   lib.rs · game.rs (pure math + tests) · oracle.rs · state.rs · instructions/{lobby,round,settle}.rs
 tests-magicsvm/        in-process ER integration tests (+ fixtures: live feed bytes, session-keys program)
-app/                   Next.js 15 PWA · src/lib/royale (shared TS SDK) · src/lib/wallet (devnet burner) · api/faucet · hooks · components · pages
+app/                   Next.js 15 PWA · src/lib/royale (shared TS SDK) · src/lib/wallet (devnet burner) · api/faucet · api/bots · hooks · components · pages
 relayer/               crank backup, orchestrator, settle caller, /rooms index
 scripts/               build.sh · e2e-round.ts · bots.ts · verify-room.ts · sweep-players.ts · preflight.ts · deploy-mainnet.sh · init-config.ts · devnet-mint.ts · smoke-tee.ts · sdk-selftest.ts
 docs/                  SPEC.md · DEMO.md · SUBMISSION.md · devnet-runs/ (live round logs with signatures)

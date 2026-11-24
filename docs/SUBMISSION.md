@@ -32,6 +32,6 @@ Battle royale for traders. Up to 16 players stake USDC and trade live Pyth Lazer
 
 **What's built (for the "tell us more" field):**
 - Anchor 1.0.2 program on `ephemeral-rollups-sdk` 0.18: USDC escrow on L1, delegation to the TEE, owner-only `EphemeralPermission` per position (owner + session key), session-key trading (`SessionTokenV2`), Pyth Lazer prices read on the TEE, two crank tasks (referee + storm requester) with the Room PDA as task authority, scoped-identity VRF storms, commit + undelegate, L1 settle with exact payout accounting, Elo.
-- Verified: 21 unit tests, 6 MagicSVM integration tests, and three live devnet-TEE rounds (crank cuts, VRF storm every interval, privacy proof, exact on-chain payouts), one of them played in the browser.
+- Verified: 21 unit tests, 7 MagicSVM integration tests, and three live devnet-TEE rounds (crank cuts, VRF storm every interval, privacy proof, exact on-chain payouts), one of them played in the browser.
 - Found and worked around an SDK 0.18.0 bug: `#[vrf_callback]` derives its identity PDA at runtime inside an Anchor constraint (~197k CU), so callbacks run out of compute. Details in the README.
 - Next.js PWA with a one-click devnet burner wallet + faucet, spectator board, relayer (crank backup, orchestration, settle, room index), and a guarded mainnet deploy + preflight.
