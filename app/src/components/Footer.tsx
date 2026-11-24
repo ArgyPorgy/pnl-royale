@@ -9,7 +9,7 @@ export function Footer() {
         <div>
           <div className="flex items-center gap-2.5">
             <LogoMark size={26} />
-            <span className="display text-lg">
+            <span className="subhead text-lg">
               PnL Royale
             </span>
           </div>

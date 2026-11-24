@@ -34,7 +34,7 @@ export default function Lobby() {
             The battle royale
             <span className="mt-2 block">for traders.</span>
           </h1>
-          <p className="subhead mt-4 text-[28px] text-white sm:text-[34px]">Last trader takes the pot.</p>
+          <p className="subhead mt-4 text-2xl text-white sm:text-[28px]">Last trader takes the pot.</p>
           <div className="mt-8 flex flex-wrap gap-3">
             {publicKey ? (
               <a href="#rooms">
@@ -79,20 +79,20 @@ function SectionHead({ title, sub }: { title: string; sub: string }) {
   return (
     <div>
       <h2 className="display text-4xl text-white sm:text-5xl">{title}</h2>
-      <p className="subhead mt-3 text-[26px] text-white sm:text-[30px]">{sub}</p>
+      <p className="subhead mt-3 text-xl text-white sm:text-2xl">{sub}</p>
     </div>
   );
 }
 
 function PartnerBand() {
   return (
-    <section className="rounded-[22px] border border-border bg-surface px-5 py-6 sm:px-8">
-      <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+    <section className="rounded-[20px] border border-border bg-surface px-4 py-3 sm:px-5">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="display text-3xl text-white">Built with</h2>
-          <p className="subhead mt-2 text-[22px] text-white">Solana, MagicBlock, Pyth.</p>
+          <h2 className="subhead text-base text-white">Built with</h2>
+          <p className="subhead text-sm text-white/80">Solana, MagicBlock, Pyth.</p>
         </div>
-        <PartnerLockup />
+        <PartnerLockup compact />
       </div>
       <div className="mt-5 flex flex-wrap items-center gap-4 border-t border-border pt-4">
         <span className="text-xs text-faint">Wallets</span>
@@ -116,7 +116,7 @@ function MarketStrip() {
       <div className="mb-3 flex items-end justify-between gap-3">
         <div>
           <h2 className="display text-3xl text-white">Markets</h2>
-          <p className="subhead mt-2 text-[22px] text-white">Pick up to three.</p>
+          <p className="subhead mt-2 text-xl text-white">Pick up to three.</p>
         </div>
       </div>
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-8">
@@ -193,7 +193,7 @@ function RoomsTable() {
           <span className="glass grid h-12 w-12 place-items-center rounded-full text-white">
             <Trophy size={20} strokeWidth={1.6} />
           </span>
-          <div className="display text-3xl text-white">
+          <div className="subhead text-2xl text-white">
             {tab === "open" ? "The floor is clear" : tab === "live" ? "No live round" : "No results yet"}
           </div>
           <p className="subhead text-xl text-white">{tab === "open" ? "Create one." : "Check back."}</p>
@@ -417,11 +417,11 @@ function StormShowcase() {
     <section className="mesh overflow-hidden rounded-[28px] border border-white/10">
       <div className="px-5 py-8 sm:px-8">
         <h2 className="display text-4xl text-white sm:text-5xl">Storms</h2>
-        <p className="subhead mt-3 text-[26px] text-white">Rules change each minute.</p>
+        <p className="subhead mt-3 text-xl text-white sm:text-2xl">Rules change each minute.</p>
         <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {storms.map(([k, line]) => (
             <div key={k} className="glass rounded-[22px] p-4">
-              <div className="subhead text-[26px] leading-none text-white">{STORM_COPY[k].title}</div>
+              <div className="subhead text-xl text-white">{STORM_COPY[k].title}</div>
               <p className="mt-2 text-sm text-white/80">{line}</p>
             </div>
           ))}
@@ -441,7 +441,7 @@ function PayoutBand() {
     <section className="grid gap-4 lg:grid-cols-2">
       <div className="mesh rounded-[28px] border border-white/10 p-6 sm:p-8">
         <h2 className="display text-4xl text-white">The pot</h2>
-        <p className="subhead mt-3 text-[26px] text-white">Top three split it.</p>
+        <p className="subhead mt-3 text-xl text-white sm:text-2xl">Top three split it.</p>
         <div className="mt-6 space-y-3">
           {rows.map(([place, pct, w]) => (
             <div key={place} className="flex items-center gap-3 text-sm">
@@ -456,7 +456,7 @@ function PayoutBand() {
       </div>
       <div className="rounded-[22px] border border-border bg-surface p-6 sm:p-8">
         <h2 className="display text-4xl text-white">Rating</h2>
-        <p className="subhead mt-3 text-[26px] text-white">Elo after every round.</p>
+        <p className="subhead mt-3 text-xl text-white sm:text-2xl">Elo after every round.</p>
         <Link href="/profile" className="mt-6 inline-flex">
           <Button variant="secondary">
             View your rating <ArrowRight size={15} />

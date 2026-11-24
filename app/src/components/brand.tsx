@@ -34,7 +34,7 @@ export function Logo({ compact = false }: { compact?: boolean }) {
     <span className="flex items-center gap-2.5">
       <LogoMark size={compact ? 26 : 30} />
       <span className="leading-none">
-        <span className="display block text-[17px] text-fg">
+        <span className="subhead block text-[17px] text-fg">
           PnL Royale
         </span>
       </span>
@@ -106,13 +106,13 @@ const PARTNERS = [
   { name: "Pyth", src: "/brand/pyth.svg", href: "https://www.pyth.network" },
 ];
 
-export function PartnerLockup({ className }: { className?: string }) {
+export function PartnerLockup({ className, compact = false }: { className?: string; compact?: boolean }) {
   return (
-    <div className={cx("flex flex-wrap items-center gap-x-8 gap-y-4", className)}>
+    <div className={cx("flex flex-wrap items-center", compact ? "gap-x-4 gap-y-2" : "gap-x-8 gap-y-4", className)}>
       {PARTNERS.map((p) => (
         <a key={p.name} href={p.href} target="_blank" rel="noreferrer" className="opacity-80 transition-opacity hover:opacity-100" title={p.name}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={p.src} alt={p.name} className={p.wide ? "h-6 w-auto" : "h-7 w-7 rounded-full"} />
+          <img src={p.src} alt={p.name} className={p.wide ? (compact ? "h-4 w-auto" : "h-6 w-auto") : compact ? "h-5 w-5 rounded-full" : "h-7 w-7 rounded-full"} />
         </a>
       ))}
     </div>

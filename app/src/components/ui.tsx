@@ -78,7 +78,7 @@ export function Card({
     <section className={cx("rounded-[var(--radius-card)] border border-border bg-surface/95 shadow-[0_1px_0_rgba(255,255,255,0.03)_inset]", className)}>
       {(title || action) && (
         <header className="flex items-center justify-between gap-3 border-b border-border px-4 py-3">
-          <h2 className="text-[13px] font-medium text-muted">{title}</h2>
+          <h2 className="subhead text-[13px] text-muted">{title}</h2>
           {action}
         </header>
       )}
@@ -161,8 +161,8 @@ export function Empty({
       ) : (
         icon && <div className="glass mb-4 grid h-12 w-12 place-items-center rounded-full text-white">{icon}</div>
       )}
-      <div className="display text-2xl text-fg">{title}</div>
-      {body && <p className="subhead mt-3 text-2xl text-white">{body}</p>}
+      <div className="subhead text-2xl text-white">{title}</div>
+      {body && <p className="subhead mt-2 text-base text-white/80">{body}</p>}
       {action && <div className="mt-5">{action}</div>}
     </div>
   );
