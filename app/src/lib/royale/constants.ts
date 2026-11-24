@@ -117,6 +117,22 @@ export const FEEDS: Feed[] = [
   { id: 182, symbol: "FARTCOIN", name: "Fartcoin", pda: new PublicKey("CVFcoSKcJZGMDv9xJWNERXxHjs7KcT3RYBPLCHdG2Jok"), exponent: -8, logo: "/tokens/fartcoin.png", tv: "BYBIT:FARTCOINUSDT.P" },
   { id: 130, symbol: "POPCAT", name: "Popcat", pda: new PublicKey("AuiyyRtjbTfrnoALr48n8yzXTNYN96Q2Rrh9bBirLHdc"), exponent: -8, logo: "/tokens/popcat.png", tv: "BINANCE:POPCATUSDT.P" },
   { id: 110, symbol: "HYPE", name: "Hyperliquid", pda: new PublicKey("CxEkVoCUwSAprvAhdWRPH63JeioQVNDtyZYEMRXuLu6x"), exponent: -8, logo: "/tokens/hype.png", tv: "COINBASE:HYPEUSD" },
+  { id: 14, symbol: "XRP", name: "XRP", pda: new PublicKey("6ghNHfjf5YP1aKtpAfdHK1KrtKEm5Ww6SaDffDTxf5xX"), exponent: -8, logo: "/tokens/xrp.png", tv: "COINBASE:XRPUSD" },
+  { id: 13, symbol: "DOGE", name: "Dogecoin", pda: new PublicKey("Gi5NTTpv9bzBQTgjKyqczJPtSbH1ojebLFgRrP3JKZYZ"), exponent: -8, logo: "/tokens/doge.png", tv: "COINBASE:DOGEUSD" },
+  { id: 15, symbol: "BNB", name: "BNB", pda: new PublicKey("BYcDWZKZcGo8y3252xkK9ZrLoRoeMFaixWD6SoeW12fs"), exponent: -8, logo: "/tokens/bnb.png", tv: "COINBASE:BNBUSD" },
+  { id: 11, symbol: "SUI", name: "Sui", pda: new PublicKey("5WLZBMYdJ9PyNLEVxUumz9XZ11446L6dEPHGkPGehJ2j"), exponent: -8, logo: "/tokens/sui.png", tv: "COINBASE:SUIUSD" },
+  { id: 18, symbol: "AVAX", name: "Avalanche", pda: new PublicKey("HVJYkTTj3cK5SBGyfMi6GfuUKWK1zmVSs23nVcRwFhfS"), exponent: -8, logo: "/tokens/avax.png", tv: "COINBASE:AVAXUSD" },
+  { id: 19, symbol: "LINK", name: "Chainlink", pda: new PublicKey("7PSQntC3hQvRPxQLgQTMtMM8U6JDFttmzBow3fT57tQT"), exponent: -8, logo: "/tokens/link.png", tv: "COINBASE:LINKUSD" },
+  { id: 4, symbol: "PEPE", name: "Pepe", pda: new PublicKey("4vNPKfsD743Qixa993s4woso36m69H3uuqcnj6GMdH7x"), exponent: -10, logo: "/tokens/pepe.png", tv: "BYBIT:PEPEUSDT" },
+  { id: 20, symbol: "SHIB", name: "Shiba Inu", pda: new PublicKey("DVtXxmCXY8YMqrfpiDNRbxmTw8BR6EvMsrrTJ4frLdJ6"), exponent: -10, logo: "/tokens/shib.png", tv: "BYBIT:SHIBUSDT" },
+  { id: 92, symbol: "JUP", name: "Jupiter", pda: new PublicKey("G2kZYbT2e2qig54RH8FY6G5ihq1QsxTZsNVuAZMV7AW2"), exponent: -8, logo: "/tokens/jup.png", tv: "BINANCE:JUPUSDT.P" },
+  { id: 97, symbol: "PENGU", name: "Pudgy Penguins", pda: new PublicKey("4guYu7di8tSfFgt7hWntxr2v4ZJLf6yp4X8Dq7ECEbqW"), exponent: -8, logo: "/tokens/pengu.png", tv: "BINANCE:PENGUUSDT.P" },
+  { id: 54, symbol: "RAY", name: "Raydium", pda: new PublicKey("uXugBZDXUvFnBYF5Yizrf8TqfxsgnKBXWEEDZRC3ZtY"), exponent: -8, logo: "/tokens/ray.png", tv: "CRYPTO:RAYUSD" },
+  { id: 91, symbol: "JTO", name: "Jito", pda: new PublicKey("G27CrnbG37qfRH15eaXbPtNQ48VagMttoJQBarpRK5nc"), exponent: -8, logo: "/tokens/jto.png", tv: "CRYPTO:JTOUSD" },
+  { id: 34, symbol: "RENDER", name: "Render", pda: new PublicKey("HZFAA9ddj39Wicd1fY3TFy5fQSQvLy5867UVVLZg8CC4"), exponent: -8, logo: "/tokens/render.png", tv: "CRYPTO:RENDERUSD" },
+  { id: 66, symbol: "ZEC", name: "Zcash", pda: new PublicKey("6XWQr2Y1XEpJrCdVbYGupnDeb3wkR4YXazVXdgn2Lwpg"), exponent: -8, logo: "/tokens/zec.png", tv: "COINBASE:ZECUSD" },
+  { id: 36, symbol: "TAO", name: "Bittensor", pda: new PublicKey("2MtF3H7Wzkp3xM6G9gdqJp55Aht1QrQdTagCKmHqJUJj"), exponent: -8, logo: "/tokens/tao.png", tv: "COINBASE:TAOUSD" },
+  { id: 27, symbol: "NEAR", name: "NEAR Protocol", pda: new PublicKey("9Uz4aJ2LKfc6Dt4zByG6qRDVtGbHC2ZBHissoc9x343P"), exponent: -8, logo: "/tokens/near.png", tv: "COINBASE:NEARUSD" },
 ];
 
 export const feedById = (id: number): Feed | undefined => FEEDS.find((f) => f.id === id);

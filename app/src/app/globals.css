@@ -264,14 +264,26 @@ body {
 
 @keyframes marquee {
   from {
-    transform: translateX(0);
-  }
-  to {
     transform: translateX(-50%);
   }
+  to {
+    transform: translateX(0);
+  }
+}
+.marquee {
+  overflow: hidden;
+  mask-image: linear-gradient(90deg, transparent, #000 4%, #000 96%, transparent);
 }
 .marquee-track {
-  animation: marquee 32s linear infinite;
+  animation: marquee 100s linear infinite;
+}
+.marquee:hover .marquee-track {
+  animation-play-state: paused;
+}
+
+.thin-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(255 255 255 / 0.18) transparent;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -285,5 +297,8 @@ body {
   .storm-shrink,
   .marquee-track {
     animation: none !important;
+  }
+  .marquee {
+    overflow-x: auto;
   }
 }

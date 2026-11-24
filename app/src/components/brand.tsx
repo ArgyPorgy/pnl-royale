@@ -44,16 +44,15 @@ export function Logo({ compact = false }: { compact?: boolean }) {
 
 export function TokenIcon({ id, size = 20, className }: { id: number; size?: number; className?: string }) {
   const f = feedById(id);
-  if (!f) return <span className={cx("inline-block rounded-full bg-surface-3", className)} style={{ width: size, height: size }} />;
+  // The circle owns the size, so a logo's own proportions can never change its shape.
   return (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img
-      src={f.logo}
-      alt=""
-      width={size}
-      height={size}
-      className={cx("shrink-0 rounded-full bg-[#0c0e14] object-contain ring-1 ring-white/15", className)}
-    />
+    <span
+      className={cx("inline-block shrink-0 overflow-hidden rounded-full bg-surface-3 ring-1 ring-white/15", className)}
+      style={{ width: size, height: size }}
+    >
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      {f && <img src={f.logo} alt="" className="block h-full w-full object-cover" />}
+    </span>
   );
 }
 

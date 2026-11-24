@@ -119,23 +119,31 @@ function MarketStrip() {
           <h2 className="display text-3xl text-white">Markets</h2>
           <p className="subhead mt-2 text-xl text-white">Pick up to three.</p>
         </div>
+        <span className="num text-xs text-faint">{FEEDS.length} live</span>
       </div>
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-8">
-        {FEEDS.map((f) => {
-          const q = quotes[f.id];
-          const dir = q ? Math.sign(q.price - q.prev) : 0;
-          return (
-            <div key={f.id} className="rounded-2xl border border-border bg-surface px-3 py-3">
-              <div className="flex items-center gap-2">
-                <TokenIcon id={f.id} size={22} />
-                <span className="text-xs font-semibold text-fg">{f.symbol}</span>
-              </div>
-              <div className={cx("num mt-2 truncate text-[13px]", dir > 0 ? "text-up" : dir < 0 ? "text-down" : "text-fg")}>
-                {q ? `$${fmtPrice(q.price)}` : <span className="skeleton inline-block h-3.5 w-16 align-middle" />}
-              </div>
-            </div>
-          );
-        })}
+      {/* Two identical rows slide by exactly one row, so the loop has no seam. */}
+      <div className="marquee">
+        <div className="marquee-track flex w-max">
+          {[false, true].map((copy) => (
+            <ul key={String(copy)} className="flex shrink-0 gap-2 pr-2" aria-hidden={copy || undefined}>
+              {FEEDS.map((f) => {
+                const q = quotes[f.id];
+                const dir = q ? Math.sign(q.price - q.prev) : 0;
+                return (
+                  <li key={f.id} className="w-[152px] shrink-0 rounded-2xl border border-border bg-surface px-3 py-3">
+                    <div className="flex items-center gap-2">
+                      <TokenIcon id={f.id} size={24} />
+                      <span className="text-xs font-semibold text-fg">{f.symbol}</span>
+                    </div>
+                    <div className={cx("num mt-2 truncate text-[13px]", dir > 0 ? "text-up" : dir < 0 ? "text-down" : "text-fg")}>
+                      {q ? `$${fmtPrice(q.price)}` : <span className="skeleton inline-block h-3.5 w-16 align-middle" />}
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          ))}
+        </div>
       </div>
     </section>
   );
@@ -322,23 +330,27 @@ function CreateRoom() {
         <div>
           <div className="flex items-center justify-between">
             <span className="text-xs font-medium text-muted">Markets</span>
-            <span className="num text-xs text-faint">{assets.length}/3</span>
+            <span className="num text-xs text-faint">
+              {assets.map((id) => feedById(id)?.symbol).join(" · ")} {assets.length}/3
+            </span>
           </div>
-          <div className="mt-1.5 grid grid-cols-4 gap-1.5">
+          <div className="thin-scroll mt-1.5 grid max-h-[238px] grid-cols-4 gap-1.5 overflow-y-auto pr-1">
             {FEEDS.map((f) => {
               const on = assets.includes(f.id);
               return (
                 <button
                   key={f.id}
                   type="button"
+                  aria-pressed={on}
+                  title={f.name}
                   onClick={() => toggle(f.id)}
                   className={cx(
-                    "flex flex-col items-center gap-1.5 rounded-xl border py-2.5 text-[11px] font-semibold transition-colors",
+                    "flex h-[68px] min-w-0 flex-col items-center justify-center gap-1.5 rounded-xl border text-[11px] font-semibold transition-colors",
                     on ? "border-white/40 bg-white/10 text-white" : "border-white/10 text-muted hover:border-white/20 hover:text-white",
                   )}
                 >
-                  <TokenIcon id={f.id} size={22} />
-                  {f.symbol}
+                  <TokenIcon id={f.id} size={26} />
+                  <span className="max-w-full truncate px-0.5">{f.symbol}</span>
                 </button>
               );
             })}
