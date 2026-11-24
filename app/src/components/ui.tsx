@@ -162,7 +162,7 @@ export function Empty({
         icon && <div className="glass mb-4 grid h-12 w-12 place-items-center rounded-full text-white">{icon}</div>
       )}
       <div className="display text-2xl text-fg">{title}</div>
-      {body && <p className="mt-2 max-w-sm text-sm leading-relaxed text-muted">{body}</p>}
+      {body && <p className="subhead mt-3 text-2xl text-white">{body}</p>}
       {action && <div className="mt-5">{action}</div>}
     </div>
   );

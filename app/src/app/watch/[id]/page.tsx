@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Eye, Lock } from "lucide-react";
+import { ArrowLeft, Eye } from "lucide-react";
 import { RoomStatus, feedById } from "@/lib/royale/constants";
 import { fmtUsdc } from "@/lib/royale/game";
 import { buildPreview } from "@/lib/ui/preview";
@@ -11,7 +11,7 @@ import { useNow, useRoomLive } from "@/hooks/useRoomLive";
 import { TokenStack } from "@/components/brand";
 import { ChartPanel, PlayersTable, RoundProgress, StormBanner, StormCard } from "@/components/room";
 import { TeeBadge } from "@/components/TeeBadge";
-import { Button, Card, Empty, Pill } from "@/components/ui";
+import { Button, Empty, Pill } from "@/components/ui";
 
 /** Spectator board: public room state only. Positions stay sealed until the round ends. */
 export default function Watch() {
@@ -37,9 +37,9 @@ export default function Watch() {
   const prices = preview ? preview.prices : live.prices;
   const history = preview ? preview.history : live.history;
   const now = preview ? Date.now() / 1000 : nowChain;
-  if (roomId === null) return <Empty icon={<Eye size={18} />} title="Invalid spectator link" action={<Back />} />;
-  if (!preview && live.missing) return <Empty icon={<Eye size={18} />} title="Room not found" body="This room doesn't exist on the current network." action={<Back />} />;
-  if (!room) return <Empty loading title="Opening the board" body="Public room state loads from the rollup. Positions stay sealed." />;
+  if (roomId === null) return <Empty icon={<Eye size={18} />} title="Bad link" action={<Back />} />;
+  if (!preview && live.missing) return <Empty icon={<Eye size={18} />} title="Room not found" body="Not on this network." action={<Back />} />;
+  if (!room) return <Empty loading title="Loading" />;
   const isLive = room.status === RoomStatus.Live;
   return (
     <div className="space-y-5">
@@ -55,18 +55,13 @@ export default function Watch() {
               <Eye size={12} /> {isLive ? "Live" : "Replay"}
             </Pill>
           </div>
+          <p className="subhead mt-2 text-2xl text-white">Positions stay sealed.</p>
           <div className="mt-2 text-[13px] text-muted">
             Pot <span className="num text-fg">${fmtUsdc(room.entryAmount * BigInt(room.seatsFilled))}</span> · {room.assets.map((id) => feedById(id)?.symbol).join(" · ")}
           </div>
         </div>
         <TeeBadge er={er} error={erError} />
       </div>
-      <Card bodyClassName="py-3">
-        <div className="flex items-center gap-2 text-sm text-muted">
-          <Lock size={14} className="text-white" />
-          Positions are sealed. This board shows who is alive, the public rank at each cut, and the storm in force.
-        </div>
-      </Card>
       {isLive && <StormBanner room={room} now={now} />}
       {isLive && <RoundProgress room={room} now={now} />}
       <div className="grid gap-5 xl:grid-cols-[1fr_400px]">

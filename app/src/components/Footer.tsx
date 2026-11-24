@@ -13,9 +13,7 @@ export function Footer() {
               PnL Royale
             </span>
           </div>
-          <p className="mt-3 max-w-sm text-sm leading-relaxed text-muted">
-            A trading battle royale on Solana. Positions stay sealed in MagicBlock&apos;s private rollup. The pot settles in USDC on the base layer.
-          </p>
+          <p className="subhead mt-3 text-xl text-white">Sealed trades. USDC on Solana.</p>
           <PartnerLockup className="mt-5" />
         </div>
         <div>

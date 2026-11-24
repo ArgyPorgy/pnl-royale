@@ -1,12 +1,15 @@
 import type { Metadata, Viewport } from "next";
-import { JetBrains_Mono, Outfit, Space_Grotesk } from "next/font/google";
+import localFont from "next/font/local";
+import { JetBrains_Mono, Outfit, Passion_One } from "next/font/google";
 import "./globals.css";
 import { Providers } from "./providers";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 
 const outfit = Outfit({ subsets: ["latin"], variable: "--font-outfit" });
-const display = Space_Grotesk({ subsets: ["latin"], variable: "--font-display-face" });
+// BBH Bartle is on Google Fonts but not in this Next.js release's font catalog yet.
+const bartle = localFont({ src: "../fonts/BBHBartle.ttf", variable: "--font-display-face", weight: "400", display: "swap" });
+const passion = Passion_One({ subsets: ["latin"], weight: "700", variable: "--font-subhead" });
 const jetbrains = JetBrains_Mono({ subsets: ["latin"], variable: "--font-jetbrains" });
 
 const description =
@@ -41,7 +44,7 @@ export const viewport: Viewport = { themeColor: "#07080c", width: "device-width"
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${outfit.variable} ${display.variable} ${jetbrains.variable}`}>
+    <html lang="en" className={`${outfit.variable} ${bartle.variable} ${passion.variable} ${jetbrains.variable}`}>
       <body className="font-sans">
         <Providers>
           <Header />

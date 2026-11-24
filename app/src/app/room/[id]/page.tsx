@@ -29,7 +29,7 @@ import {
 } from "@/lib/royale/client";
 import { IS_DEVNET, MIN_SEATS, RoomStatus, explorerAccount, feedById } from "@/lib/royale/constants";
 import { readableError, requestFaucet, sendEr } from "@/lib/royale/er";
-import { checkpointTs, finalistsFor, fmtChips, fmtUsdc, intervalOf, prizeSplit, roundEndTs } from "@/lib/royale/game";
+import { checkpointTs, finalistsFor, fmtUsdc, intervalOf, prizeSplit, roundEndTs } from "@/lib/royale/game";
 import { useSession } from "@/hooks/useSession";
 import { useEr } from "@/hooks/useEr";
 import { useNow, useRoomLive } from "@/hooks/useRoomLive";
@@ -267,9 +267,9 @@ export default function RoomPage() {
     }
   }, [room, er, session, seated, live.delegated, now, er_, preview]);
 
-  if (roomId === null) return <EmptyState title="Invalid room link" />;
-  if (!preview && live.missing) return <EmptyState title="Room not found" body="This room doesn't exist on the current network." />;
-  if (!view) return <EmptyState title="Opening the room" body="Reading the account from Solana." loading />;
+  if (roomId === null) return <EmptyState title="Bad link" />;
+  if (!preview && live.missing) return <EmptyState title="Room not found" body="Not on this network." />;
+  if (!view) return <EmptyState title="Loading" loading />;
 
   const status = STATUS[view.status];
   const pot = view.entryAmount * BigInt(view.seatsFilled);
@@ -354,7 +354,7 @@ export default function RoomPage() {
                     <OrderTicket room={view} position={position} asset={asset} now={now} busy={busy} onTrade={trade} />
                   ) : (
                     <Card title="Trade">
-                      <p className="text-[13px] text-muted">This device doesn&apos;t have your session key. Enable one-tap trading to trade without wallet popups.</p>
+                      <p className="subhead text-xl text-white">Enable one-tap trading.</p>
                       <Button variant="primary" className="mt-3 w-full" disabled={busy} onClick={enableSession}>
                         Enable one-tap trading
                       </Button>
@@ -365,9 +365,7 @@ export default function RoomPage() {
               ) : (
                 <>
                   <Card title="Spectating">
-                    <p className="text-[13px] leading-relaxed text-muted">
-                      This round is in progress. Positions are sealed inside the TEE, so only rankings at each cut are public.
-                    </p>
+                    <p className="subhead text-xl text-white">Positions stay sealed.</p>
                     <Link href={`/watch/${view.roomId}`} className="mt-3 inline-flex">
                       <Button size="sm">Open the spectator board</Button>
                     </Link>
@@ -392,7 +390,7 @@ export default function RoomPage() {
 
       {view.status === RoomStatus.Cancelled && (
         <Card title="Room cancelled">
-          <p className="text-[13px] text-muted">This room didn&apos;t fill in time. Every entry is refundable in full, and the relayer sends refunds automatically.</p>
+          <p className="subhead text-xl text-white">Entries refund.</p>
         </Card>
       )}
     </div>
@@ -481,11 +479,9 @@ function SeatsCard({
       </div>
       <div className="mt-4 space-y-2">
         {starting ? (
-          <div className="rounded-[10px] border border-border bg-bg px-3 py-3 text-[13px] text-muted">
-            Sealing positions inside the TEE and starting the clock…
-          </div>
+          <div className="subhead rounded-[10px] border border-border bg-bg px-3 py-3 text-xl text-white">Starting.</div>
         ) : seated ? (
-          <div className="rounded-[10px] border border-up/20 bg-up/5 px-3 py-3 text-[13px] text-up">You&apos;re in, seat {room.players.findIndex((p) => me && p.equals(me)) + 1}. The round starts automatically.</div>
+          <div className="subhead rounded-[10px] border border-up/20 bg-up/5 px-3 py-3 text-xl text-up">You&apos;re in. Seat {room.players.findIndex((p) => me && p.equals(me)) + 1}.</div>
         ) : me ? (
           <Button variant="primary" size="lg" className="w-full" disabled={busy || room.seatsFilled >= room.maxSeats} onClick={onJoin}>
             {busy ? "Joining…" : `Join for $${fmtUsdc(room.entryAmount)}${IS_DEVNET ? " test USDC" : ""}`}
@@ -523,10 +519,8 @@ function PrizeCard({ room }: { room: RoomState }) {
           <div className="text-xs text-muted">Pot so far</div>
           <div className="balance mt-1 text-5xl text-white">${pot.toFixed(2)}</div>
         </div>
-        <div className="text-right text-xs text-faint">
-          Up to ${full.toFixed(2)} when full
-          <br />
-          {room.feeBps / 100}% protocol fee
+        <div className="num text-right text-xs text-faint">
+          Up to ${full.toFixed(2)} · {room.feeBps / 100}% fee
         </div>
       </div>
       <div className="mt-4 space-y-1.5">
@@ -540,9 +534,6 @@ function PrizeCard({ room }: { room: RoomState }) {
           </div>
         ))}
       </div>
-      <p className="mt-4 text-[11px] leading-relaxed text-faint">
-        Everyone starts with 10,000 chips. The lowest equity is cut every {room.intervalSecs}s until {f} {f === 1 ? "player remains" : "finalists remain"}.
-      </p>
     </Card>
   );
 }
@@ -586,18 +577,16 @@ function ResultCard({
             {won ? (
               <div className="num mt-2 text-lg text-up">+${fmtUsdc(payout)}</div>
             ) : (
-              <div className="mt-2 text-[13px] text-muted">
-                Cut at interval {room.elimCheckpoint[seat]} with {fmtChips(room.finalEquity[seat])} chips
-              </div>
+              <div className="subhead mt-2 text-xl text-white">Cut at {room.elimCheckpoint[seat]}.</div>
             )}
-            <div className="mt-1 text-xs text-faint">
-              {room.status === RoomStatus.Settled ? (won ? "Paid to your wallet on Solana" : "Round settled on Solana") : delegated ? "Committing results to Solana…" : "Awaiting payout"}
+            <div className="subhead mt-2 text-lg text-white">
+              {room.status === RoomStatus.Settled ? (won ? "Paid on Solana." : "Settled.") : delegated ? "Committing." : "Awaiting payout."}
             </div>
           </>
         ) : (
           <>
             <div className="display mt-4 text-3xl">Round complete</div>
-            <div className="mt-1 text-xs text-faint">{room.status === RoomStatus.Settled ? "Paid out on Solana" : "Awaiting payout"}</div>
+            <p className="subhead mt-2 text-xl text-white">{room.status === RoomStatus.Settled ? "Paid on Solana." : "Awaiting payout."}</p>
           </>
         )}
       </div>

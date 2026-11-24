@@ -27,6 +27,16 @@ const STORM_ANIM: Record<StormKind, string> = {
   [StormKind.ZoneShrink]: "storm-shrink",
 };
 
+function stormLine(room: RoomState, storm: { kind: StormKind; asset: number; side: number }) {
+  const asset = assetSymbol(room, storm.asset);
+  const side = storm.side === 1 ? "longs" : "shorts";
+  if (storm.kind === StormKind.Spotlight) return `${asset} pays double.`;
+  if (storm.kind === StormKind.Surge) return "25x is open.";
+  if (storm.kind === StormKind.Freeze) return `No new ${side}.`;
+  if (storm.kind === StormKind.ZoneShrink) return "Flat bleeds faster.";
+  return "Standard rules.";
+}
+
 export const mmss = (s: number) => {
   const t = Math.max(0, Math.ceil(s));
   return `${String(Math.floor(t / 60)).padStart(2, "0")}:${String(t % 60).padStart(2, "0")}`;
@@ -58,9 +68,6 @@ export function RoundProgress({ room, now }: { room: RoomState; now: number }) {
             {cur + 1}
             <span className="text-base text-faint">/6</span>
           </div>
-        </div>
-        <div className="ml-auto hidden max-w-[220px] text-right text-xs leading-relaxed text-faint md:block">
-          Eliminations run from an onchain crank inside the TEE. Anyone can trigger a cut that is already due.
         </div>
       </div>
       <div className="grid grid-cols-6 gap-1.5 border-t border-border p-3">
@@ -107,7 +114,7 @@ export function StormBanner({ room, now }: { room: RoomState; now: number }) {
       <div>
         <div className="kicker">Storm live</div>
         <div className="mt-0.5 text-sm font-semibold text-fg">{STORM_COPY[storm.kind].title}</div>
-        <p className="text-[13px] text-muted">{STORM_COPY[storm.kind].blurb(assetSymbol(room, storm.asset), storm.side === 1 ? "Long" : "Short")}</p>
+        <p className="subhead text-lg text-white">{stormLine(room, storm)}</p>
       </div>
     </div>
   );
@@ -134,11 +141,7 @@ export function StormCard({ room, now }: { room: RoomState; now: number }) {
         </span>
         <div>
           <div className="text-sm font-semibold text-fg">{active ? STORM_COPY[storm.kind].title : pending ? "Drawing a storm" : "Clear interval"}</div>
-          <p className="mt-0.5 text-[13px] leading-relaxed text-muted">
-            {active
-              ? STORM_COPY[storm.kind].blurb(assetSymbol(room, storm.asset), storm.side === 1 ? "Long" : "Short")
-              : "A storm can double one market, unlock 25x, freeze a side, or bleed flat equity faster."}
-          </p>
+          <p className="subhead mt-1 text-lg text-white">{active ? stormLine(room, storm) : pending ? "Drawing now." : "Standard rules."}</p>
         </div>
       </div>
     </Card>
@@ -219,7 +222,7 @@ export function ChartPanel({
             <div>
               <div className="kicker">Oracle</div>
               <div className="num mt-2 text-4xl text-fg">{mark ? `$${fmtPrice(mark)}` : "—"}</div>
-              <p className="mt-2 text-sm text-muted">The tape fills as Pyth prints on the rollup. The reference chart is available beside it.</p>
+              <p className="subhead mt-2 text-xl text-white">Waiting on the oracle.</p>
             </div>
           </div>
         ) : (
@@ -227,7 +230,7 @@ export function ChartPanel({
         )}
       </div>
       <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border px-4 py-2 text-[11px] text-faint">
-        <span>Fills use the onchain Pyth Lazer price, read inside the TEE on every action.</span>
+        <span>Oracle price.</span>
         {mode === "reference" && (
           <a href={`https://www.tradingview.com/symbols/${feed?.tv.replace(":", "-")}/`} target="_blank" rel="noreferrer" className="hover:text-muted">
             Chart by TradingView
@@ -256,7 +259,7 @@ export function PositionCard({
       <Card title="Your position">
         <div className="space-y-2">
           <div className="skeleton h-8 w-32" />
-          <div className="text-[13px] text-muted">Reading your sealed position from the TEE…</div>
+          <div className="subhead text-lg text-white">Reading your position.</div>
         </div>
       </Card>
     );
@@ -289,7 +292,6 @@ export function PositionCard({
             {total >= 0 ? "+" : ""}
             {total.toFixed(2)}%
           </div>
-          <div className="text-[11px] text-faint">vs 10,000 start</div>
         </div>
       </div>
       <div className="mt-4 border-t border-border pt-2">
@@ -419,9 +421,6 @@ export function OrderTicket({
                     ? "Go flat"
                     : `${side === 1 ? "Long" : "Short"} ${symbol} ${lev}x`}
       </Button>
-      <p className="mt-3 text-[11px] leading-relaxed text-faint">
-        Signed by your session key inside the TEE. No wallet popup, no gas. Minimum hold {MIN_HOLD_SECS}s. Flat equity bleeds 1% per minute.
-      </p>
     </Card>
   );
 }
@@ -514,7 +513,7 @@ export function Activity({ items, token }: { items: TxItem[]; token: string | nu
   return (
     <Card title="Your activity" action={<span className="num text-[11px] text-faint">{ok.length} onchain{avg ? ` · ${avg} ms avg` : ""}</span>} bodyClassName="p-0">
       {items.length === 0 ? (
-        <div className="px-4 py-5 text-[13px] text-faint">Every action you take is a gasless transaction on the rollup. They show up here.</div>
+        <div className="subhead px-4 py-5 text-lg text-white">Trades land here.</div>
       ) : (
         <ul className="max-h-64 overflow-auto">
           {items.slice(0, 20).map((t) => (

@@ -32,8 +32,8 @@ export default function Profile() {
     return (
       <Empty
         icon={<Wallet size={20} strokeWidth={1.6} />}
-        title="Your rating lives with your wallet"
-        body="Connect to read the Elo account stored on Solana. New players start at 1,200."
+        title="Connect a wallet"
+        body="Your rating is on Solana."
         action={
           <Button variant="primary" onClick={() => setVisible(true)}>
             Connect wallet
@@ -77,14 +77,14 @@ export default function Profile() {
         <Card>
           <div className="space-y-3 py-6">
             <div className="skeleton mx-auto h-8 w-40" />
-            <div className="text-center text-sm text-muted">Loading rating…</div>
+            <div className="subhead text-center text-xl text-white">Loading.</div>
           </div>
         </Card>
       ) : shown === null ? (
         <Empty
           icon={<Trophy size={20} strokeWidth={1.6} />}
           title="No rounds yet"
-          body="Every player starts at 1,200. The first settled round writes your account."
+          body="You start at 1,200."
           action={
             <Link href="/">
               <Button variant="primary">Find a room</Button>
@@ -102,9 +102,6 @@ export default function Profile() {
               </Card>
             ))}
           </div>
-          <p className="max-w-2xl text-[13px] leading-relaxed text-muted">
-            Ratings are stored on Solana and update after every settled round: a pairwise Elo against the whole field, scored by placement.
-          </p>
         </>
       )}
     </div>

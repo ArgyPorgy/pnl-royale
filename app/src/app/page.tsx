@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useConnection, useWallet } from "@solana/wallet-adapter-react";
 import { useWalletModal } from "@solana/wallet-adapter-react-ui";
 import { Transaction } from "@solana/web3.js";
-import { ArrowRight, ChevronRight, CircleDollarSign, Dices, Lock, Plus, Timer, Trophy, Wallet } from "lucide-react";
+import { ArrowRight, ChevronRight, Lock, Plus, Timer, Trophy, Wallet } from "lucide-react";
 import { ixCreateRoom, newRoomId, withPriority } from "@/lib/royale/client";
 import { FEEDS, IS_DEVNET, IS_TEE, RoomStatus, STORM_COPY, StormKind, USDC_DECIMALS, feedById } from "@/lib/royale/constants";
 import { readableError, requestFaucet } from "@/lib/royale/er";
@@ -30,13 +30,11 @@ export default function Lobby() {
           <Pill>
             Solana {IS_DEVNET ? "devnet" : "mainnet"} · MagicBlock {IS_TEE ? "private rollup" : "ephemeral rollup"}
           </Pill>
-          <h1 className="display mt-5 text-[42px] leading-[0.96] text-white sm:text-[64px]">
+          <h1 className="display mt-5 text-[46px] text-white sm:text-[72px]">
             The battle royale
-            <span className="mt-1 block">for traders.</span>
+            <span className="mt-2 block">for traders.</span>
           </h1>
-          <p className="mt-5 max-w-xl text-[16px] leading-relaxed text-muted">
-            Four to sixteen traders stake USDC, take hidden positions on live prices, and outlast a field that gets smaller every minute. The last traders standing take the pot, paid on Solana.
-          </p>
+          <p className="subhead mt-4 text-[28px] text-white sm:text-[34px]">Last trader takes the pot.</p>
           <div className="mt-8 flex flex-wrap gap-3">
             {publicKey ? (
               <a href="#rooms">
@@ -51,44 +49,17 @@ export default function Lobby() {
               <Plus size={16} /> Create a room
             </Button>
           </div>
-          {IS_DEVNET && !publicKey && (
-            <p className="mt-3 max-w-md text-xs leading-relaxed text-faint">
-              No extension required on devnet. A browser wallet and test USDC are created for you. Phantom, Backpack, and Solflare work too.
-            </p>
-          )}
-          <dl className="mt-10 grid grid-cols-2 gap-x-6 gap-y-5 sm:grid-cols-4">
-            {[
-              [Lock, "Sealed positions", "Only you can read yours"],
-              [Timer, "Onchain cuts", "A crank eliminates the low"],
-              [Dices, "VRF storms", "Rules drawn in public"],
-              [CircleDollarSign, "USDC escrow", "Settled on Solana"],
-            ].map(([Icon, t, d]) => {
-              const I = Icon as typeof Lock;
-              return (
-                <div key={t as string}>
-                  <I size={18} className="text-white" strokeWidth={1.75} />
-                  <dt className="mt-2 text-sm font-semibold text-fg">{t as string}</dt>
-                  <dd className="mt-0.5 text-xs text-faint">{d as string}</dd>
-                </div>
-              );
-            })}
-          </dl>
         </div>
         <div className="fade-up [animation-delay:80ms]">
           <HeroArt />
         </div>
       </section>
 
-      <RuleMarquee />
       <PartnerBand />
       <MarketStrip />
 
       <section id="rooms" className="scroll-mt-24">
-        <SectionHead
-          kicker="The floor"
-          title="Open a seat, or take one."
-          body="Entry sits in a Solana escrow that never moves to the rollup. It pays the finalists, or it refunds everyone if the room never fills."
-        />
+        <SectionHead title="Open a seat." sub="Stake, then trade." />
         <div className="mt-6 grid items-start gap-6 lg:grid-cols-[1fr_380px]">
           <RoomsTable />
           <div ref={createRef}>
@@ -104,29 +75,11 @@ export default function Lobby() {
   );
 }
 
-function SectionHead({ kicker, title, body }: { kicker: string; title: string; body: string }) {
+function SectionHead({ title, sub }: { title: string; sub: string }) {
   return (
-    <div className="max-w-2xl">
-      <div className="kicker">{kicker}</div>
-      <h2 className="display mt-2 text-3xl text-fg sm:text-4xl">{title}</h2>
-      <p className="mt-3 text-sm leading-relaxed text-muted sm:text-[15px]">{body}</p>
-    </div>
-  );
-}
-
-function RuleMarquee() {
-  const items = ["Hidden positions", "Cuts every interval", "VRF storms", "Up to 10x, 25x in a surge", "Flat equity bleeds", "USDC pot", "One signature to join", "Gasless trades after that"];
-  const row = [...items, ...items];
-  return (
-    <div className="overflow-hidden rounded-full border border-border bg-surface/70 py-2.5">
-      <div className="marquee-track flex w-max gap-8 px-4">
-        {row.map((t, i) => (
-          <span key={i} className="flex items-center gap-8 text-[13px] font-medium text-faint">
-            {t}
-            <span className="h-1 w-1 rounded-full bg-white/30" />
-          </span>
-        ))}
-      </div>
+    <div>
+      <h2 className="display text-4xl text-white sm:text-5xl">{title}</h2>
+      <p className="subhead mt-3 text-[26px] text-white sm:text-[30px]">{sub}</p>
     </div>
   );
 }
@@ -136,8 +89,8 @@ function PartnerBand() {
     <section className="rounded-[22px] border border-border bg-surface px-5 py-6 sm:px-8">
       <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <div className="kicker">Built with</div>
-          <p className="mt-2 max-w-md text-sm text-muted">Solana holds the money. MagicBlock runs the private round. Pyth Lazer prices every fill.</p>
+          <h2 className="display text-3xl text-white">Built with</h2>
+          <p className="subhead mt-2 text-[22px] text-white">Solana, MagicBlock, Pyth.</p>
         </div>
         <PartnerLockup />
       </div>
@@ -162,10 +115,9 @@ function MarketStrip() {
     <section>
       <div className="mb-3 flex items-end justify-between gap-3">
         <div>
-          <div className="kicker">Markets</div>
-          <h2 className="mt-1 text-sm font-medium text-fg">Eight feeds. The round picks up to three.</h2>
+          <h2 className="display text-3xl text-white">Markets</h2>
+          <p className="subhead mt-2 text-[22px] text-white">Pick up to three.</p>
         </div>
-        <span className="hidden text-xs text-faint sm:block">Pyth Lazer, read from the rollup oracle</span>
       </div>
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-8">
         {FEEDS.map((f) => {
@@ -241,12 +193,10 @@ function RoomsTable() {
           <span className="glass grid h-12 w-12 place-items-center rounded-full text-white">
             <Trophy size={20} strokeWidth={1.6} />
           </span>
-          <div className="display text-xl text-fg">
-            {tab === "open" ? "The floor is clear" : tab === "live" ? "No round in progress" : "No settled rounds yet"}
+          <div className="display text-3xl text-white">
+            {tab === "open" ? "The floor is clear" : tab === "live" ? "No live round" : "No results yet"}
           </div>
-          <div className="max-w-xs text-xs leading-relaxed text-faint">
-            {tab === "open" ? "Create a room, set the entry, and send the link. Four seats is enough to start." : "Rooms appear here as soon as they lock and again when they pay out."}
-          </div>
+          <p className="subhead text-xl text-white">{tab === "open" ? "Create one." : "Check back."}</p>
         </div>
       ) : (
         <ul>
@@ -261,7 +211,6 @@ function RoomsTable() {
                 >
                   <div>
                     <div className="font-semibold text-fg">Room {r.roomId.toString().slice(-6)}</div>
-                    <div className="text-xs text-faint">{r.private ? "Sealed in the TEE" : "Public rollup"}</div>
                   </div>
                   <div className="flex items-center gap-2">
                     <TokenStack ids={r.assets} size={20} />
@@ -428,35 +377,28 @@ function CreateRoom() {
           )}
         </Button>
         {msg && <div className="text-xs text-down">{msg}</div>}
-        <p className="text-xs leading-relaxed text-faint">
-          Entries are held in an escrow account on Solana that never leaves the base layer. Only a payout to the finalists, or a refund if the room never fills, can move them.
-        </p>
       </div>
     </Card>
   );
 }
 
 function HowItWorks() {
-  const steps: [typeof Lock, string, string][] = [
-    [Wallet, "One signature", "Your entry is escrowed on Solana and your seat is delegated into the TEE. A session key signs every trade after that."],
-    [Lock, "Trade in private", "Long, short, or flat, up to 10x, on live Pyth prices. Each fill is a free rollup transaction only you can read."],
-    [Timer, "Survive the cut", "Every interval an onchain crank marks the field and eliminates the lowest equity. Flat positions bleed, so standing still is a choice."],
-    [Trophy, "Paid on Solana", "Results commit back to the base layer, every trade becomes public, and finalists are paid in USDC from escrow."],
+  const steps: [typeof Lock, string][] = [
+    [Wallet, "Join"],
+    [Lock, "Trade"],
+    [Timer, "Survive"],
+    [Trophy, "Get paid"],
   ];
   return (
     <section>
-      <SectionHead kicker="A round" title="Six intervals. One pot." body="The referee is an onchain crank. Storms come from VRF. Nobody in the room can see your size until the round is over." />
+      <SectionHead title="Six minutes." sub="Join, trade, survive." />
       <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {steps.map(([Icon, t, d], i) => (
+        {steps.map(([Icon, t]) => (
           <div key={t} className="rounded-[var(--radius-card)] border border-border bg-surface p-5">
-            <div className="flex items-center justify-between">
-              <span className="glass grid h-10 w-10 place-items-center rounded-full text-white">
-                <Icon size={18} strokeWidth={1.75} />
-              </span>
-              <span className="num text-xs text-faint">0{i + 1}</span>
-            </div>
-            <div className="mt-4 text-sm font-semibold text-fg">{t}</div>
-            <p className="mt-1.5 text-[13px] leading-relaxed text-muted">{d}</p>
+            <span className="glass grid h-10 w-10 place-items-center rounded-full text-white">
+              <Icon size={18} strokeWidth={1.75} />
+            </span>
+            <div className="subhead mt-4 text-2xl text-white">{t}</div>
           </div>
         ))}
       </div>
@@ -465,20 +407,22 @@ function HowItWorks() {
 }
 
 function StormShowcase() {
-  const storms = [StormKind.Spotlight, StormKind.Surge, StormKind.Freeze, StormKind.ZoneShrink];
+  const storms: [StormKind, string][] = [
+    [StormKind.Spotlight, "One market pays double."],
+    [StormKind.Surge, "25x is open."],
+    [StormKind.Freeze, "One side is blocked."],
+    [StormKind.ZoneShrink, "Flat bleeds faster."],
+  ];
   return (
     <section className="mesh overflow-hidden rounded-[28px] border border-white/10">
       <div className="px-5 py-8 sm:px-8">
-        <div className="kicker">Storms</div>
-        <h2 className="display mt-2 max-w-xl text-3xl sm:text-4xl">The rules change in public.</h2>
-        <p className="mt-3 max-w-xl text-sm leading-relaxed text-muted">
-          Once an interval, MagicBlock VRF draws a storm. It applies forward only. The callback, the seed, and the proof are onchain.
-        </p>
+        <h2 className="display text-4xl text-white sm:text-5xl">Storms</h2>
+        <p className="subhead mt-3 text-[26px] text-white">Rules change each minute.</p>
         <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          {storms.map((k) => (
+          {storms.map(([k, line]) => (
             <div key={k} className="glass rounded-[22px] p-4">
-              <div className="text-sm font-medium text-white">{STORM_COPY[k].title}</div>
-              <p className="mt-2 text-[13px] leading-relaxed text-muted">{STORM_COPY[k].blurb("SOL", "Long")}</p>
+              <div className="subhead text-[26px] leading-none text-white">{STORM_COPY[k].title}</div>
+              <p className="mt-2 text-sm text-white/80">{line}</p>
             </div>
           ))}
         </div>
@@ -496,11 +440,8 @@ function PayoutBand() {
   return (
     <section className="grid gap-4 lg:grid-cols-2">
       <div className="mesh rounded-[28px] border border-white/10 p-6 sm:p-8">
-        <div className="kicker">Payout</div>
-        <h2 className="display mt-2 text-3xl">USDC, from escrow.</h2>
-        <p className="mt-3 text-sm leading-relaxed text-muted">
-          A full table pays three places, 60 / 30 / 10 after a 5% fee. Five to seven seats pay two. Four seats pay the last trader standing.
-        </p>
+        <h2 className="display text-4xl text-white">The pot</h2>
+        <p className="subhead mt-3 text-[26px] text-white">Top three split it.</p>
         <div className="mt-6 space-y-3">
           {rows.map(([place, pct, w]) => (
             <div key={place} className="flex items-center gap-3 text-sm">
@@ -514,11 +455,8 @@ function PayoutBand() {
         </div>
       </div>
       <div className="rounded-[22px] border border-border bg-surface p-6 sm:p-8">
-        <div className="kicker">Rating</div>
-        <h2 className="display mt-2 text-3xl">Skill stays on Solana.</h2>
-        <p className="mt-3 text-sm leading-relaxed text-muted">
-          Every settled round rewrites a pairwise Elo against the field, scored by placement. Everyone starts at 1,200. The account is yours.
-        </p>
+        <h2 className="display text-4xl text-white">Rating</h2>
+        <p className="subhead mt-3 text-[26px] text-white">Elo after every round.</p>
         <Link href="/profile" className="mt-6 inline-flex">
           <Button variant="secondary">
             View your rating <ArrowRight size={15} />

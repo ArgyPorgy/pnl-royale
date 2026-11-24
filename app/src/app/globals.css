@@ -21,6 +21,7 @@
   --font-sans: var(--font-outfit), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-jetbrains), ui-monospace, monospace;
   --font-display: var(--font-display-face), ui-sans-serif, system-ui, sans-serif;
+  --font-sub: var(--font-subhead), ui-sans-serif, system-ui, sans-serif;
   --radius-card: 24px;
 }
 
@@ -73,23 +74,33 @@ body {
 
 .display {
   font-family: var(--font-display);
-  font-weight: 500;
-  letter-spacing: -0.04em;
+  font-weight: 400;
+  letter-spacing: 0.01em;
+  line-height: 0.9;
+}
+
+.subhead {
+  font-family: var(--font-sub);
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: none;
+  line-height: 1.05;
 }
 
 .balance {
-  font-family: var(--font-display);
-  font-weight: 400;
-  letter-spacing: -0.045em;
+  font-family: var(--font-mono);
+  font-weight: 500;
+  letter-spacing: -0.03em;
   font-variant-numeric: tabular-nums;
 }
 
 .kicker {
-  font-size: 13px;
-  font-weight: 500;
+  font-family: var(--font-sub);
+  font-size: 1.15rem;
+  font-weight: 700;
   letter-spacing: 0;
   text-transform: none;
-  color: var(--color-muted);
+  color: #fff;
 }
 
 /* Wallet adapter, restyled to the floor */
