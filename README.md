@@ -53,7 +53,7 @@ All three are fixed.
 
 Everything below runs with `npm run test:program`.
 
-**Unit tests (21, `programs/royale/src/game.rs`, `state.rs`):** mark-to-market, liquidation, zone bleed, spotlight, spread, cut schedule for 4–16 seats (16 → 3/3/3/2/2), tie-break hash, payouts with tie pooling and dust, fee math, Elo, storm derivation, freeze/leverage rules, overflow bounds, account sizes.
+**Unit tests (22, `programs/royale/src/game.rs`, `state.rs`, `constants.rs`):** mark-to-market, liquidation, zone bleed, spotlight, spread, cut schedule for 4–16 seats (16 → 3/3/3/2/2), tie-break hash, payouts with tie pooling and dust, fee math, Elo, storm derivation, freeze/leverage rules, overflow bounds, account sizes, every pinned feed is the oracle's PDA for its id.
 
 **MagicSVM integration tests (7, `tests-magicsvm/tests/round.rs`):** the compiled `royale.so` runs in-process on a base ledger plus an ephemeral ledger, using the real Delegation, Magic, Permission and VRF programs:
 
@@ -67,7 +67,7 @@ Everything below runs with `npm run test:program`.
 | `unfilled_room_refunds_everyone` | no start short-handed, no refund before expiry, full refunds after, idempotent, positions released from the ER and closed |
 | `decodes_live_mainnet_tee_feed_bytes` | the oracle decoder accepts a real SOL/USD account dumped from the mainnet TEE (and rejects wrong addresses) |
 
-**Live mainnet checks** (read-only, `npx tsx scripts/smoke-tee.ts`): TEE remote attestation verified, an auth token issued from our network (smoke test T4), and all 8 whitelisted feeds live on the TEE at about 0.4 s age.
+**Live mainnet checks** (read-only, `npx tsx scripts/smoke-tee.ts`): TEE remote attestation verified, an auth token issued from our network (smoke test T4), and all 24 whitelisted feeds live on the TEE, each under 1 s old.
 
 **Not yet verified:**
 - **The mainnet deploy:** it needs about 3.9 SOL, almost all a refundable rent deposit. Everything else in the mainnet preflight passes.
@@ -93,7 +93,7 @@ Everything below runs with `npm run test:program`.
 
 ### Round lifecycle
 
-1. **`create_room`** (L1): entry, seats (4–16), 1–3 whitelisted assets, interval (15–300 s, default 60), private flag. Creates the USDC vault PDA.
+1. **`create_room`** (L1): entry, seats (4–16), 1–3 of 24 whitelisted assets, interval (15–300 s, default 60), private flag. Creates the USDC vault PDA.
 2. **`join_room` + `delegate_position` + `create_session_v2`** (L1, **one transaction, one popup**): escrow the entry, init the Position (pre-funded for permission rent), delegate it to the TEE, and register a 1-hour browser session key. The session key is stored as the position's **viewer**.
 3. **`start_room`** (L1): needs 4 or more seats. The room's creator may start at any time; anyone may once the room is full or the fill window has passed. Locks the roster and delegates the Room.
 4. **`init_permission`** (ER, anyone, idempotent): owner-only `EphemeralPermission` with members `[owner, viewer]`.
@@ -171,7 +171,7 @@ npm run build:program      # SBF build + IDL (scripts/build.sh), copies IDL into
 ```
 
 ```bash
-npm run test:program       # 21 unit + 7 MagicSVM integration tests
+npm run test:program       # 22 unit + 7 MagicSVM integration tests
 ```
 
 ```bash
@@ -224,7 +224,7 @@ cp app/.env.example app/.env.local && npm run dev   # http://localhost:3000
 |---|---|
 | Program keypair ↔ `declare_id` | ✅ `7t2L…RBJ5`; backed up to `~/.config/solana/royale-program-keypair.json` |
 | Delegation, Permission, Session Keys, VRF, Oracle programs on mainnet L1 | ✅ all executable |
-| Mainnet TEE | ✅ `magicblock-core 1.1.1` (`8886db2`, the build validated on devnet), identity `MTEW…xzo`, attestation verified, all 8 feeds fresh, VRF ER queue active |
+| Mainnet TEE | ✅ `magicblock-core 1.1.1` (`8886db2`, the build validated on devnet), identity `MTEW…xzo`, attestation verified, all 24 feeds fresh, VRF ER queue active |
 | TEE **write** ingress from the operator's network | ✅ accepted a probe transaction (spec open item T4) |
 | `rpc.magicblock.app/mainnet` (MagicBlock's L1 RPC) | ⚠️ geo-restricted from the operator's network ("Access Restricted… regulatory requirements"). Not used: L1 traffic goes to Solana RPC (public or Helius/Triton) |
 | Keys | mainnet admin `2YuKdKLGQupshkGX5aUQDzAJrTAgkQTQysrfWLVSheYs`, relayer `9XdTMBjgXuNYtPKX4RCmY67XUKK1UPDBbYHKGmxHBaYE` (files in `~/.config/solana`, `chmod 600`; back them up) |
