@@ -162,6 +162,8 @@ export function StormCard({ room, now }: { room: RoomState; now: number }) {
   );
 }
 
+const TV_SOURCE: Record<string, string> = { COINBASE: "Coinbase", CRYPTO: "TradingView index", BYBIT: "Bybit", BINANCE: "Binance" };
+
 export function ChartPanel({
   room,
   prices,
@@ -244,7 +246,7 @@ export function ChartPanel({
         )}
       </div>
       <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border px-4 py-2 text-[11px] text-faint">
-        <span>Oracle price.</span>
+        <span>{mode === "reference" && feed ? `${TV_SOURCE[feed.tv.split(":")[0]] ?? "Market"} price. Trades fill at the oracle price.` : "Oracle price."}</span>
         {mode === "reference" && (
           <a href={`https://www.tradingview.com/symbols/${feed?.tv.replace(":", "-")}/`} target="_blank" rel="noreferrer" className="hover:text-muted">
             Chart by TradingView

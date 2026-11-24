@@ -102,20 +102,21 @@ export type Feed = {
   exponent: number;
   /** Token logo served from /public/tokens */
   logo: string;
-  /** TradingView symbol for the reference chart (Pyth prices, the oracle's upstream) */
+  /** TradingView symbol for the reference chart. A liquid market with a real tick size: Pyth's own
+   * symbols print 8 decimals on every coin (57000.00000000). */
   tv: string;
 };
 
 /** Pinned Pyth Lazer feeds republished on the ER by MagicBlock's pricing oracle. */
 export const FEEDS: Feed[] = [
-  { id: 6, symbol: "SOL", name: "Solana", pda: new PublicKey("ENYwebBThHzmzwPLAQvCucUTsjyfBSZdD9ViXksS4jPu"), exponent: -8, logo: "/tokens/sol.svg", tv: "PYTH:SOLUSD" },
-  { id: 1, symbol: "BTC", name: "Bitcoin", pda: new PublicKey("71wtTRDY8Gxgw56bXFt2oc6qeAbTxzStdNiC425Z51sr"), exponent: -8, logo: "/tokens/btc.svg", tv: "PYTH:BTCUSD" },
-  { id: 2, symbol: "ETH", name: "Ethereum", pda: new PublicKey("5vaYr1hpv8yrSpu8w3K95x22byYxUJCCNCSYJtqVWPvG"), exponent: -8, logo: "/tokens/eth.svg", tv: "PYTH:ETHUSD" },
-  { id: 9, symbol: "BONK", name: "Bonk", pda: new PublicKey("4WWpu2fva3uZjmZS95fezYFfoydmYi3PU7ApnqG9cYss"), exponent: -10, logo: "/tokens/bonk.png", tv: "PYTH:BONKUSD" },
-  { id: 10, symbol: "WIF", name: "dogwifhat", pda: new PublicKey("Cy6KSY9DCcJ5HiKL3H4ir6XiSC1PczCCJj7LEe9Y8A7x"), exponent: -8, logo: "/tokens/wif.png", tv: "PYTH:WIFUSD" },
-  { id: 182, symbol: "FARTCOIN", name: "Fartcoin", pda: new PublicKey("CVFcoSKcJZGMDv9xJWNERXxHjs7KcT3RYBPLCHdG2Jok"), exponent: -8, logo: "/tokens/fartcoin.png", tv: "PYTH:FARTCOINUSD" },
-  { id: 130, symbol: "POPCAT", name: "Popcat", pda: new PublicKey("AuiyyRtjbTfrnoALr48n8yzXTNYN96Q2Rrh9bBirLHdc"), exponent: -8, logo: "/tokens/popcat.png", tv: "PYTH:POPCATUSD" },
-  { id: 110, symbol: "HYPE", name: "Hyperliquid", pda: new PublicKey("CxEkVoCUwSAprvAhdWRPH63JeioQVNDtyZYEMRXuLu6x"), exponent: -8, logo: "/tokens/hype.png", tv: "PYTH:HYPEUSD" },
+  { id: 6, symbol: "SOL", name: "Solana", pda: new PublicKey("ENYwebBThHzmzwPLAQvCucUTsjyfBSZdD9ViXksS4jPu"), exponent: -8, logo: "/tokens/sol.svg", tv: "CRYPTO:SOLUSD" },
+  { id: 1, symbol: "BTC", name: "Bitcoin", pda: new PublicKey("71wtTRDY8Gxgw56bXFt2oc6qeAbTxzStdNiC425Z51sr"), exponent: -8, logo: "/tokens/btc.svg", tv: "COINBASE:BTCUSD" },
+  { id: 2, symbol: "ETH", name: "Ethereum", pda: new PublicKey("5vaYr1hpv8yrSpu8w3K95x22byYxUJCCNCSYJtqVWPvG"), exponent: -8, logo: "/tokens/eth.svg", tv: "COINBASE:ETHUSD" },
+  { id: 9, symbol: "BONK", name: "Bonk", pda: new PublicKey("4WWpu2fva3uZjmZS95fezYFfoydmYi3PU7ApnqG9cYss"), exponent: -10, logo: "/tokens/bonk.png", tv: "BYBIT:BONKUSDT" },
+  { id: 10, symbol: "WIF", name: "dogwifhat", pda: new PublicKey("Cy6KSY9DCcJ5HiKL3H4ir6XiSC1PczCCJj7LEe9Y8A7x"), exponent: -8, logo: "/tokens/wif.png", tv: "CRYPTO:WIFUSD" },
+  { id: 182, symbol: "FARTCOIN", name: "Fartcoin", pda: new PublicKey("CVFcoSKcJZGMDv9xJWNERXxHjs7KcT3RYBPLCHdG2Jok"), exponent: -8, logo: "/tokens/fartcoin.png", tv: "BYBIT:FARTCOINUSDT.P" },
+  { id: 130, symbol: "POPCAT", name: "Popcat", pda: new PublicKey("AuiyyRtjbTfrnoALr48n8yzXTNYN96Q2Rrh9bBirLHdc"), exponent: -8, logo: "/tokens/popcat.png", tv: "BINANCE:POPCATUSDT.P" },
+  { id: 110, symbol: "HYPE", name: "Hyperliquid", pda: new PublicKey("CxEkVoCUwSAprvAhdWRPH63JeioQVNDtyZYEMRXuLu6x"), exponent: -8, logo: "/tokens/hype.png", tv: "COINBASE:HYPEUSD" },
 ];
 
 export const feedById = (id: number): Feed | undefined => FEEDS.find((f) => f.id === id);

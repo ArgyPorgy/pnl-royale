@@ -48,7 +48,8 @@ export const fmtPnl = (v: bigint) => {
 export const fmtUsdc = (v: bigint) =>
   (Number(v) / 1e6).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-export const fmtPrice = (x: number) => {
+/** `sig`: significant digits for tiny prices. */
+export const fmtPrice = (x: number, sig = 4) => {
   if (!x) return "—";
   if (x >= 1000) return x.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   if (x >= 1) return x.toFixed(x >= 100 ? 2 : 3);
@@ -56,7 +57,7 @@ export const fmtPrice = (x: number) => {
   if (x >= 0.0001) return x.toFixed(6);
   // DEX-style subscript zeros: 0.0000020711 -> 0.0₅20711
   const zeros = Math.floor(-Math.log10(x)); // leading zeros after the decimal point
-  const digits = Math.round(x * 10 ** (zeros + 4)).toString();
+  const digits = Math.round(x * 10 ** (zeros + sig)).toString();
   const sub = String(zeros).split("").map((d) => "₀₁₂₃₄₅₆₇₈₉"[Number(d)]).join("");
   return `0.0${sub}${digits}`;
 };
