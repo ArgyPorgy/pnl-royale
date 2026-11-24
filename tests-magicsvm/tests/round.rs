@@ -55,7 +55,12 @@ impl World {
     }
 }
 
+/// A room with exactly one seat per player.
 fn setup(n_players: usize, private: bool) -> World {
+    setup_seats(n_players, n_players as u8, private)
+}
+
+fn setup_seats(n_players: usize, max_seats: u8, private: bool) -> World {
     let admin = Keypair::new();
     let mut svm = boot(&admin);
     set_unix(&mut svm, 1_800_000_000);
@@ -112,7 +117,7 @@ fn setup(n_players: usize, private: bool) -> World {
                 args: royale::instructions::CreateRoomArgs {
                     room_id: ROOM_ID,
                     entry_amount: ENTRY,
-                    max_seats: n_players as u8,
+                    max_seats,
                     assets: vec![6, 9],
                     fill_secs: 600,
                     interval_secs: 60,
@@ -525,6 +530,47 @@ fn four_player_room_ends_early_with_single_winner() {
     send(&mut w.svm, Base, &[&admin], &[settle], "settle");
     assert_eq!(token_amount(&w.svm, &w.token_of(winner)) - before, 3_800_000, "winner takes 95% of $4");
     assert_eq!(token_amount(&w.svm, &w.fee_vault), 200_000);
+}
+
+/// The room's creator may start an 8-seat room with four players; nobody else may before it is
+/// full or the fill window passes.
+#[test]
+fn host_starts_early_with_four_seats() {
+    let mut w = setup_seats(4, 8, false);
+    let admin = w.admin.insecure_clone(); // created the room
+    let outsider = w.players[0].insecure_clone();
+    let join = |w: &mut World, i: usize| {
+        let ixs = join_ixs(w, i);
+        let p = w.players[i].insecure_clone();
+        send(&mut w.svm, Base, &[&p], &ixs, &format!("join p{i}"));
+    };
+    for i in 0..3 {
+        join(&mut w, i);
+    }
+    let s = start_ix(&w);
+    assert!(try_send(&mut w.svm, Base, &[&admin], &[s]).is_err(), "3 < 4: not even the host");
+    join(&mut w, 3);
+
+    let mut s = start_ix(&w);
+    s.accounts[0].pubkey = outsider.pubkey();
+    let err = try_send(&mut w.svm, Base, &[&outsider], &[s]).unwrap_err();
+    assert!(err.1.iter().any(|l| l.contains("NotStartable")), "a player who isn't the host must wait: {err:?}");
+
+    let s = start_ix(&w);
+    send(&mut w.svm, Base, &[&admin], &[s], "host start_room");
+    assert_eq!(owner_of(&w.svm, Base, &w.room), pk(&ephemeral_rollups_sdk::id()), "room delegated");
+    let room = read_room(&w.svm, Ephemeral, &w.room);
+    assert_eq!((room.seats_filled, room.max_seats, room.alive_count, room.finalists_target), (4, 8, 4, 1));
+
+    // The short-handed round runs to a payout on the four real seats.
+    w.refresh_feeds();
+    let ixx = begin_ix(&w);
+    send(&mut w.svm, Ephemeral, &[&admin], &[ixx], "begin_round");
+    trade(&mut w, 0, SIDE_LONG, 5, SOL as u8);
+    run_seconds(&mut w, 200, 1);
+    let room = read_room(&w.svm, Ephemeral, &w.room);
+    assert_eq!(room.status, RoomStatus::Ended as u8);
+    assert_eq!((room.finalist_count, room.finalist_seats[0]), (1, 0));
 }
 
 #[test]
