@@ -136,7 +136,7 @@ export function Row({ label, value, valueClass }: { label: ReactNode; value: Rea
   return (
     <div className="flex items-center justify-between gap-3 py-1.5 text-[13px]">
       <span className="text-muted">{label}</span>
-      <span className={cx("num text-right text-fg", valueClass)}>{value}</span>
+      <span className={cx("num text-right", valueClass ?? "text-fg")}>{value}</span>
     </div>
   );
 }

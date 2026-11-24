@@ -4,8 +4,21 @@ import type { PublicKey } from "@solana/web3.js";
 import { Crosshair, ExternalLink, Gauge, Lock, Minus, Shrink, Snowflake, Trophy, type LucideIcon } from "lucide-react";
 import type { PositionState, RoomState } from "@/lib/royale/client";
 import { assetSymbol, priceToNumber } from "@/lib/royale/client";
-import { FREEZE_SECS, LEVERAGES, MIN_HOLD_SECS, STORM_COPY, StormKind, SURGE_LEVERAGE, erExplorerTx, explorerAccount, feedById } from "@/lib/royale/constants";
-import { checkpointTs, fmtChips, fmtPrice, fmtUsdc, intervalOf, liveEquity, prizeSplit, short, stormFor } from "@/lib/royale/game";
+import {
+  BLEED_BPS_PER_MIN,
+  FLIP_COST_BPS,
+  FREEZE_SECS,
+  LEVERAGES,
+  MIN_HOLD_SECS,
+  STARTING_CHIPS,
+  STORM_COPY,
+  StormKind,
+  SURGE_LEVERAGE,
+  erExplorerTx,
+  explorerAccount,
+  feedById,
+} from "@/lib/royale/constants";
+import { checkpointTs, chips, fmtChips, fmtPnl, fmtPrice, fmtUsdc, intervalOf, liveEquity, prizeSplit, short, stormFor, type Storm } from "@/lib/royale/game";
 import { TVChart, type TvInterval } from "./TVChart";
 import { OracleChart } from "./OracleChart";
 import { useBots } from "@/hooks/useBots";
@@ -242,18 +255,29 @@ export function ChartPanel({
   );
 }
 
+/** Percent of equity lost per minute while flat. */
+const flatPct = (storm: Storm) => (BLEED_BPS_PER_MIN / 100) * (storm.kind === StormKind.ZoneShrink ? 2 : 1);
+const holdLeftOf = (p: PositionState | null, now: number) => (p ? Math.max(0, p.lastActionTs + MIN_HOLD_SECS - now) : 0);
+const tradeName = (room: RoomState, p: PositionState) => `${p.side > 0 ? "Long" : "Short"} ${assetSymbol(room, p.assetIdx)} ${p.leverage}x`;
+const pnlTone = (v: bigint) => (v > 0n ? "text-up" : v < 0n ? "text-down" : undefined);
+
 export function PositionCard({
   room,
   position,
   prices,
   now,
   rank,
+  busy,
+  onClose,
 }: {
   room: RoomState;
   position: PositionState | null;
   prices: (bigint | null)[];
   now: number;
   rank: number;
+  busy: boolean;
+  /** Missing while trading is not enabled. */
+  onClose?: () => void;
 }) {
   if (!position)
     return (
@@ -265,8 +289,10 @@ export function PositionCard({
       </Card>
     );
   const eq = liveEquity(room, position, prices, now);
-  const total = (Number(eq) / 10_000_000_000 - 1) * 100;
-  const unreal = Number(eq - position.equityAtOpen) / 1e6;
+  const total = (Number(eq) / Number(STARTING_CHIPS) - 1) * 100;
+  // Every close, opening cost and cut folds into equityAtOpen; the rest is still open.
+  const locked = position.equityAtOpen - STARTING_CHIPS;
+  const open = eq - position.equityAtOpen;
   const f = feedById(room.assets[position.assetIdx]);
   const entry = f && position.side !== 0 ? priceToNumber(position.entryPrice, f.exponent) : 0;
   const mark = f && prices[position.assetIdx] ? priceToNumber(prices[position.assetIdx]!, f.exponent) : 0;
@@ -274,6 +300,9 @@ export function PositionCard({
   const mult = storm.kind === StormKind.Spotlight && storm.asset === position.assetIdx ? 2 : 1;
   const liq = entry ? entry * (1 - position.side / (position.leverage * mult)) : 0;
   const dead = !position.alive || position.liquidated;
+  const inTrade = position.side !== 0 && !dead;
+  const rebased = inTrade && position.entryTs > position.lastActionTs;
+  const holdLeft = holdLeftOf(position, now);
   return (
     <Card
       title="Your position"
@@ -289,7 +318,7 @@ export function PositionCard({
           <div className={cx("balance mt-1 text-[40px] leading-none", dead ? "text-white/40" : "text-white")}>{fmtChips(eq)}</div>
         </div>
         <div className="text-right">
-          <div className={cx("num text-sm font-semibold", total >= 0 ? "text-up" : "text-down")}>
+          <div className={cx("num rounded-full bg-black/60 px-2.5 py-1 text-sm font-semibold", total >= 0 ? "text-up" : "text-down")}>
             {total >= 0 ? "+" : ""}
             {total.toFixed(2)}%
           </div>
@@ -302,28 +331,37 @@ export function PositionCard({
             dead ? (
               <span className="text-down">Eliminated</span>
             ) : position.side === 0 ? (
-              <span className="text-muted">Flat · bleeding {storm.kind === StormKind.ZoneShrink ? "2" : "1"}%/min</span>
+              <span className="text-muted">Flat · bleeding {flatPct(storm)}%/min</span>
             ) : (
-              <span className={position.side > 0 ? "text-up" : "text-down"}>
-                {position.side > 0 ? "Long" : "Short"} {f?.symbol} {position.leverage}x
-              </span>
+              <span className={position.side > 0 ? "text-up" : "text-down"}>{tradeName(room, position)}</span>
             )
           }
         />
-        {position.side !== 0 && !dead && (
+        {inTrade && (
           <>
-            <Row label="Entry" value={`$${fmtPrice(entry)}`} />
+            <Row label={rebased ? "Entry (last cut)" : "Entry"} value={`$${fmtPrice(entry)}`} />
             <Row label="Mark (oracle)" value={`$${fmtPrice(mark)}`} />
             <Row label="Liquidation" value={`$${fmtPrice(liq)}`} valueClass="text-warn" />
-            <Row
-              label="Unrealized"
-              value={`${unreal >= 0 ? "+" : ""}${unreal.toLocaleString(undefined, { maximumFractionDigits: 2 })}`}
-              valueClass={unreal >= 0 ? "text-up" : "text-down"}
-            />
+          </>
+        )}
+        {!dead && (
+          <>
+            <Row label={inTrade ? "Open PnL" : "Flat cost"} value={fmtPnl(open)} valueClass={pnlTone(open)} />
+            <Row label="Locked-in PnL" value={fmtPnl(locked)} valueClass={pnlTone(locked)} />
           </>
         )}
         <Row label="Rank at last cut" value={rank > 0 ? `#${rank} of ${room.aliveCount}` : "—"} />
       </div>
+      {inTrade && onClose && (
+        <div className="mt-3">
+          <Button variant="primary" size="lg" className="w-full" disabled={busy || holdLeft > 0} onClick={onClose}>
+            {busy ? "Submitting…" : holdLeft > 0 ? `Hold ${holdLeft.toFixed(1)}s` : `Close · lock in ${fmtPnl(open)}`}
+          </Button>
+          <p className="mt-2 text-center text-xs text-muted">
+            Closes at the oracle price, free. Flat then costs {flatPct(stormFor(room, intervalOf(room.startTs, room.intervalSecs, now)))}% a minute.
+          </p>
+        </div>
+      )}
     </Card>
   );
 }
@@ -331,6 +369,7 @@ export function PositionCard({
 export function OrderTicket({
   room,
   position,
+  prices,
   asset,
   now,
   busy,
@@ -338,6 +377,7 @@ export function OrderTicket({
 }: {
   room: RoomState;
   position: PositionState | null;
+  prices: (bigint | null)[];
   asset: number;
   now: number;
   busy: boolean;
@@ -353,15 +393,19 @@ export function OrderTicket({
     if (!surge && lev === SURGE_LEVERAGE) setLev(10);
   }, [surge, lev]);
   const frozen = storm.kind === StormKind.Freeze && now < checkpointTs(room, cur) + FREEZE_SECS ? storm.side : 0;
-  const holdLeft = position ? Math.max(0, position.lastActionTs + MIN_HOLD_SECS - now) : 0;
+  const holdLeft = holdLeftOf(position, now);
   const dead = !!position && (!position.alive || position.liquidated);
+  const inTrade = !!position && position.side !== 0 && !dead;
+  const eq = position ? liveEquity(room, position, prices, now) : 0n;
+  const open = position ? eq - position.equityAtOpen : 0n;
   const symbol = assetSymbol(room, asset);
   const same = side === 0 ? position?.side === 0 : position && position.side === side && position.leverage === lev && position.assetIdx === asset;
-  const fee = position && side !== 0 ? (Number(position.equity) / 1e6) * lev * 0.0005 : 0;
+  const size = chips(eq) * lev;
+  const fee = (size * FLIP_COST_BPS) / 10_000;
   const blocked = busy || dead || holdLeft > 0 || !!same || (side !== 0 && frozen === side);
   const sides: { value: 1 | -1 | 0; label: string }[] = [
     { value: 1, label: "Long" },
-    { value: 0, label: "Flat" },
+    { value: 0, label: inTrade ? "Close" : "Flat" },
     { value: -1, label: "Short" },
   ];
   return (
@@ -395,9 +439,25 @@ export function OrderTicket({
         <Segmented<number> className="w-full" value={lev} onChange={setLev} options={levels.map((l) => ({ value: l, label: `${l}x`, disabled: side === 0 }))} />
       </div>
       <div className="mt-4 rounded-xl border border-border bg-bg px-3 py-1.5">
-        <Row label="Market" value={`${symbol}/USD`} />
-        <Row label="Notional" value={position && side !== 0 ? `${((Number(position.equity) / 1e6) * lev).toLocaleString(undefined, { maximumFractionDigits: 0 })} chips` : side === 0 ? "Flat" : "—"} />
-        <Row label="Spread (5 bps)" value={position && side !== 0 ? `${fee.toFixed(2)} chips` : "—"} />
+        {side === 0 ? (
+          <>
+            {inTrade && (
+              <>
+                <Row label="Closes" value={tradeName(room, position)} />
+                <Row label="Locks in" value={fmtPnl(open)} valueClass={pnlTone(open)} />
+                <Row label="Closing cost" value="None" />
+              </>
+            )}
+            <Row label="While flat" value={`-${flatPct(storm)}% a minute`} />
+          </>
+        ) : (
+          <>
+            {inTrade && !same && <Row label="Closes first" value={`${tradeName(room, position)} · ${fmtPnl(open)}`} />}
+            <Row label="Market" value={`${symbol}/USD`} />
+            <Row label="Notional" value={position ? `${size.toLocaleString(undefined, { maximumFractionDigits: 0 })} chips` : "—"} />
+            <Row label={`Spread (${FLIP_COST_BPS} bps)`} value={position ? `${fee.toFixed(2)} chips` : "—"} />
+          </>
+        )}
       </div>
       <Button
         variant={side === 1 ? "up" : side === -1 ? "down" : "secondary"}
@@ -419,7 +479,7 @@ export function OrderTicket({
                     ? "Already flat"
                     : "Position open"
                   : side === 0
-                    ? "Go flat"
+                    ? `Close · lock in ${fmtPnl(open)}`
                     : `${side === 1 ? "Long" : "Short"} ${symbol} ${lev}x`}
       </Button>
     </Card>

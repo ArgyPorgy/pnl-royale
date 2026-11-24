@@ -39,6 +39,12 @@ export function liveEquity(room: RoomState, pos: PositionState, prices: (bigint 
 export const chips = (v: bigint) => Number(v) / 1e6;
 export const fmtChips = (v: bigint) =>
   chips(v).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+/** Signed chips: +12.30, -4.00, 0.00. */
+export const fmtPnl = (v: bigint) => {
+  const n = Math.round(chips(v) * 100) / 100;
+  const abs = Math.abs(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return `${n > 0 ? "+" : n < 0 ? "-" : ""}${abs}`;
+};
 export const fmtUsdc = (v: bigint) =>
   (Number(v) / 1e6).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 

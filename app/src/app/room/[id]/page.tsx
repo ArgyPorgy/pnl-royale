@@ -362,9 +362,17 @@ export default function RoomPage() {
                 </>
               ) : playing ? (
                 <>
-                  <PositionCard room={view} position={position} prices={prices} now={now} rank={view.publicRank[viewSeat] ?? 0} />
+                  <PositionCard
+                    room={view}
+                    position={position}
+                    prices={prices}
+                    now={now}
+                    rank={view.publicRank[viewSeat] ?? 0}
+                    busy={busy}
+                    onClose={position && (preview || valid) ? () => trade(0, 1, position.assetIdx) : undefined}
+                  />
                   {preview || valid ? (
-                    <OrderTicket room={view} position={position} asset={asset} now={now} busy={busy} onTrade={trade} />
+                    <OrderTicket room={view} position={position} prices={prices} asset={asset} now={now} busy={busy} onTrade={trade} />
                   ) : (
                     <Card title="Trade">
                       <p className="subhead text-xl text-white">Enable one-tap trading.</p>
