@@ -58,7 +58,7 @@ pub const MAX_FALLBACK_AGE_SECS: i64 = 120;
 /// (pyth_lazer_id, feed PDA, exponent from pyth_lazer_list.json). The account's own
 /// exponent field is wrong (+8), so the exponent here is only used for display; the
 /// program's PnL math uses price ratios, where the exponent cancels.
-pub const FEEDS: [(u16, Pubkey, i8); 8] = [
+pub const FEEDS: [(u16, Pubkey, i8); 24] = [
     (6, pubkey!("ENYwebBThHzmzwPLAQvCucUTsjyfBSZdD9ViXksS4jPu"), -8), // SOL/USD
     (1, pubkey!("71wtTRDY8Gxgw56bXFt2oc6qeAbTxzStdNiC425Z51sr"), -8), // BTC/USD
     (2, pubkey!("5vaYr1hpv8yrSpu8w3K95x22byYxUJCCNCSYJtqVWPvG"), -8), // ETH/USD
@@ -67,6 +67,22 @@ pub const FEEDS: [(u16, Pubkey, i8); 8] = [
     (182, pubkey!("CVFcoSKcJZGMDv9xJWNERXxHjs7KcT3RYBPLCHdG2Jok"), -8), // FARTCOIN/USD
     (130, pubkey!("AuiyyRtjbTfrnoALr48n8yzXTNYN96Q2Rrh9bBirLHdc"), -8), // POPCAT/USD
     (110, pubkey!("CxEkVoCUwSAprvAhdWRPH63JeioQVNDtyZYEMRXuLu6x"), -8), // HYPE/USD
+    (14, pubkey!("6ghNHfjf5YP1aKtpAfdHK1KrtKEm5Ww6SaDffDTxf5xX"), -8), // XRP/USD
+    (13, pubkey!("Gi5NTTpv9bzBQTgjKyqczJPtSbH1ojebLFgRrP3JKZYZ"), -8), // DOGE/USD
+    (15, pubkey!("BYcDWZKZcGo8y3252xkK9ZrLoRoeMFaixWD6SoeW12fs"), -8), // BNB/USD
+    (11, pubkey!("5WLZBMYdJ9PyNLEVxUumz9XZ11446L6dEPHGkPGehJ2j"), -8), // SUI/USD
+    (18, pubkey!("HVJYkTTj3cK5SBGyfMi6GfuUKWK1zmVSs23nVcRwFhfS"), -8), // AVAX/USD
+    (19, pubkey!("7PSQntC3hQvRPxQLgQTMtMM8U6JDFttmzBow3fT57tQT"), -8), // LINK/USD
+    (4, pubkey!("4vNPKfsD743Qixa993s4woso36m69H3uuqcnj6GMdH7x"), -10), // PEPE/USD
+    (20, pubkey!("DVtXxmCXY8YMqrfpiDNRbxmTw8BR6EvMsrrTJ4frLdJ6"), -10), // SHIB/USD
+    (92, pubkey!("G2kZYbT2e2qig54RH8FY6G5ihq1QsxTZsNVuAZMV7AW2"), -8), // JUP/USD
+    (97, pubkey!("4guYu7di8tSfFgt7hWntxr2v4ZJLf6yp4X8Dq7ECEbqW"), -8), // PENGU/USD
+    (54, pubkey!("uXugBZDXUvFnBYF5Yizrf8TqfxsgnKBXWEEDZRC3ZtY"), -8), // RAY/USD
+    (91, pubkey!("G27CrnbG37qfRH15eaXbPtNQ48VagMttoJQBarpRK5nc"), -8), // JTO/USD
+    (34, pubkey!("HZFAA9ddj39Wicd1fY3TFy5fQSQvLy5867UVVLZg8CC4"), -8), // RENDER/USD
+    (66, pubkey!("6XWQr2Y1XEpJrCdVbYGupnDeb3wkR4YXazVXdgn2Lwpg"), -8), // ZEC/USD
+    (36, pubkey!("2MtF3H7Wzkp3xM6G9gdqJp55Aht1QrQdTagCKmHqJUJj"), -8), // TAO/USD
+    (27, pubkey!("9Uz4aJ2LKfc6Dt4zByG6qRDVtGbHC2ZBHissoc9x343P"), -8), // NEAR/USD
 ];
 
 // ---------- Crank ----------
@@ -90,3 +106,21 @@ pub const ELO_FLOOR: i32 = 100;
 
 // ---------- Sentinel values ----------
 pub const NO_STORM_INTERVAL: u8 = u8::MAX;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Every pinned feed is the oracle's PDA for its Lazer id, and no id or account repeats.
+    #[test]
+    fn feeds_are_the_oracle_pdas_for_their_ids() {
+        for (i, (id, key, _)) in FEEDS.iter().enumerate() {
+            let (pda, _) = Pubkey::find_program_address(
+                &[b"price_feed", b"pyth-lazer", id.to_string().as_bytes()],
+                &ORACLE_PROGRAM_ID,
+            );
+            assert_eq!(pda, *key, "feed {id}");
+            assert!(FEEDS[..i].iter().all(|(other, k, _)| other != id && k != key), "duplicate feed {id}");
+        }
+    }
+}
