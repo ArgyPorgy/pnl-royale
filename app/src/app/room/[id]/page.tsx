@@ -29,6 +29,7 @@ import {
 } from "@/lib/royale/client";
 import { IS_DEVNET, MIN_SEATS, RoomStatus, explorerAccount, feedById } from "@/lib/royale/constants";
 import { readableError, requestFaucet, sendEr } from "@/lib/royale/er";
+import { sendAndConfirm } from "@/lib/royale/l1";
 import { checkpointTs, finalistsFor, fmtUsdc, intervalOf, prizeSplit, roundEndTs } from "@/lib/royale/game";
 import { useSession } from "@/hooks/useSession";
 import { useEr } from "@/hooks/useEr";
@@ -108,9 +109,7 @@ export default function RoomPage() {
       tx.recentBlockhash = blockhash;
       const signed = await wallet.signTransaction(tx); // wallet signs first (Phantom guidance)
       if (extraSigners.length) signed.partialSign(...extraSigners);
-      const sig = await connection.sendRawTransaction(signed.serialize(), { skipPreflight: false });
-      await connection.confirmTransaction({ signature: sig, blockhash, lastValidBlockHeight }, "confirmed");
-      return sig;
+      return sendAndConfirm(connection, signed, lastValidBlockHeight);
     },
     [wallet, connection],
   );

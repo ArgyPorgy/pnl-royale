@@ -8,6 +8,7 @@ import {
   getAssociatedTokenAddressSync,
 } from "@solana/spl-token";
 import { CLUSTER, L1_RPC, USDC_MINT } from "@/lib/royale/constants";
+import { sendAndConfirm } from "@/lib/royale/l1";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -65,8 +66,7 @@ export async function POST(req: Request) {
     tx.recentBlockhash = blockhash;
     tx.feePayer = faucet.publicKey;
     tx.sign(faucet);
-    const sig = await l1.sendRawTransaction(tx.serialize());
-    await l1.confirmTransaction({ signature: sig, blockhash, lastValidBlockHeight }, "confirmed");
+    const sig = await sendAndConfirm(l1, tx, lastValidBlockHeight);
     recent.set(wallet.toBase58(), now);
     recent.set(`ip:${ip}`, now);
     return NextResponse.json({ ok: true, sig });

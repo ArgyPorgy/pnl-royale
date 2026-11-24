@@ -9,6 +9,7 @@ import { ArrowRight, ChevronRight, Lock, Plus, Timer, Trophy, Wallet } from "luc
 import { ixCreateRoom, newRoomId, withPriority } from "@/lib/royale/client";
 import { FEEDS, IS_DEVNET, IS_TEE, RoomStatus, STORM_COPY, StormKind, USDC_DECIMALS, feedById } from "@/lib/royale/constants";
 import { readableError, requestFaucet } from "@/lib/royale/er";
+import { sendAndConfirm } from "@/lib/royale/l1";
 import { finalistsFor, fmtPrice, fmtUsdc } from "@/lib/royale/game";
 import { useRooms } from "@/hooks/useRooms";
 import { useEr } from "@/hooks/useEr";
@@ -284,8 +285,7 @@ function CreateRoom() {
       const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
       tx.recentBlockhash = blockhash;
       const signed = await wallet.signTransaction(tx);
-      const sig = await connection.sendRawTransaction(signed.serialize());
-      await connection.confirmTransaction({ signature: sig, blockhash, lastValidBlockHeight }, "confirmed");
+      await sendAndConfirm(connection, signed, lastValidBlockHeight);
       router.push(`/room/${roomId}`);
     } catch (e) {
       setMsg(readableError(e));
