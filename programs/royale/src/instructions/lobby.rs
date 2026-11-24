@@ -354,8 +354,9 @@ pub fn delegate_position(ctx: Context<DelegatePosition>) -> Result<()> {
     Ok(())
 }
 
-/// Anyone: once the room is full, or the fill window passed with at least 4 seats,
-/// lock the roster and delegate the Room to the ER validator (first remaining account).
+/// Lock the roster and delegate the Room to the ER validator (first remaining account). Needs at
+/// least 4 seats. The room's creator may start as soon as those are filled; anyone may start once
+/// the room is full or the fill window has passed.
 #[delegate]
 #[derive(Accounts)]
 pub struct StartRoom<'info> {
@@ -382,8 +383,9 @@ pub fn start_room(ctx: Context<StartRoom>) -> Result<()> {
     require_keys_eq!(expected, ctx.accounts.room.key(), RoyaleError::Unauthorized);
     require!(room.status() == RoomStatus::Open, RoyaleError::RoomNotOpen);
     require!(room.seats_filled >= MIN_SEATS, RoyaleError::NotStartable);
+    let host = room.creator == ctx.accounts.payer.key();
     require!(
-        room.seats_filled == room.max_seats || now >= room.fill_expiry,
+        host || room.seats_filled == room.max_seats || now >= room.fill_expiry,
         RoyaleError::NotStartable
     );
     room.set_status(RoomStatus::Starting);
