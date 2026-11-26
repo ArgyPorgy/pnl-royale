@@ -286,6 +286,119 @@ body {
   scrollbar-color: rgb(255 255 255 / 0.18) transparent;
 }
 
+/* Round effects (GameFx) */
+.fx-vignette {
+  background: radial-gradient(ellipse at center, transparent 52%, rgba(255, 46, 84, 0.55) 100%);
+  animation: fx-beat 1s ease-in-out infinite;
+}
+@keyframes fx-beat {
+  0%,
+  100% {
+    filter: brightness(0.75);
+  }
+  12% {
+    filter: brightness(1.35);
+  }
+  28% {
+    filter: brightness(0.9);
+  }
+  40% {
+    filter: brightness(1.2);
+  }
+}
+.fx-flash {
+  animation: fx-flash 0.55s ease-out both;
+}
+@keyframes fx-flash {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+.fx-count {
+  text-shadow: 0 6px 40px rgba(0, 0, 0, 0.6);
+  animation: fx-count 1s cubic-bezier(0.2, 0.9, 0.3, 1) both;
+}
+@keyframes fx-count {
+  0% {
+    opacity: 0;
+    transform: scale(1.9);
+  }
+  25% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  80% {
+    opacity: 1;
+    transform: scale(0.96);
+  }
+  100% {
+    opacity: 0.15;
+    transform: scale(0.85);
+  }
+}
+.fx-pending {
+  animation: urgent-pulse 0.5s ease-in-out infinite;
+}
+.fx-band {
+  animation: fx-band 2.6s cubic-bezier(0.2, 0.9, 0.3, 1) both;
+}
+@keyframes fx-band {
+  0% {
+    opacity: 0;
+    transform: scale(1.18);
+    filter: blur(8px);
+  }
+  12% {
+    opacity: 1;
+    transform: scale(1);
+    filter: none;
+  }
+  85% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-16px) scale(0.98);
+  }
+}
+.fx-shake {
+  animation: fx-shake 0.45s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+}
+@keyframes fx-shake {
+  10%,
+  90% {
+    transform: translate3d(-2px, 1px, 0);
+  }
+  20%,
+  80% {
+    transform: translate3d(4px, -2px, 0);
+  }
+  30%,
+  50%,
+  70% {
+    transform: translate3d(-7px, 2px, 0);
+  }
+  40%,
+  60% {
+    transform: translate3d(7px, -1px, 0);
+  }
+}
+.fx-confetti {
+  animation: fx-confetti linear both;
+}
+@keyframes fx-confetti {
+  from {
+    transform: translate3d(0, -5vh, 0) rotate(0);
+  }
+  to {
+    transform: translate3d(var(--drift), 105vh, 0) rotate(var(--spin));
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .fade-up,
   .pulse-dot,
@@ -295,7 +408,13 @@ body {
   .storm-surge,
   .storm-freeze,
   .storm-shrink,
-  .marquee-track {
+  .marquee-track,
+  .fx-vignette,
+  .fx-count,
+  .fx-pending,
+  .fx-band,
+  .fx-shake,
+  .fx-confetti {
     animation: none !important;
   }
   .marquee {

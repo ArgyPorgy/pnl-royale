@@ -12,6 +12,7 @@ import { useBotDriver, useBots } from "@/hooks/useBots";
 import { TokenStack } from "@/components/brand";
 import { ChartPanel, PlayersTable, RoundProgress, StormBanner, StormCard } from "@/components/room";
 import { TeeBadge } from "@/components/TeeBadge";
+import { GameFx, SoundToggle } from "@/components/GameFx";
 import { Button, Empty, Pill } from "@/components/ui";
 
 /** Spectator board: public room state only. Positions stay sealed until the round ends. */
@@ -34,7 +35,8 @@ export default function Watch() {
     setPreviewKey(new URLSearchParams(window.location.search).get("preview"));
   }, []);
   const preview = useMemo(() => buildPreview(previewKey === "spectate" || previewKey === "live" ? "spectate" : previewKey), [previewKey]);
-  useBotDriver(preview ? null : live.room, live.delegated, null, useBots());
+  const bots = useBots();
+  useBotDriver(preview ? null : live.room, live.delegated, null, bots);
   const room = preview?.room ?? live.room;
   const prices = preview ? preview.prices : live.prices;
   const history = preview ? preview.history : live.history;
@@ -62,8 +64,12 @@ export default function Watch() {
             Pot <span className="num text-fg">${fmtUsdc(room.entryAmount * BigInt(room.seatsFilled))}</span> · {room.assets.map((id) => feedById(id)?.symbol).join(" · ")}
           </div>
         </div>
-        <TeeBadge er={er} error={erError} />
+        <div className="flex items-center gap-2">
+          <SoundToggle />
+          <TeeBadge er={er} error={erError} />
+        </div>
       </div>
+      {room.status !== RoomStatus.Open && room.status !== RoomStatus.Cancelled && <GameFx room={room} now={now} me={null} bots={bots} />}
       {isLive && <StormBanner room={room} now={now} />}
       {isLive && <RoundProgress room={room} now={now} />}
       <div className="grid gap-5 xl:grid-cols-[1fr_400px]">
