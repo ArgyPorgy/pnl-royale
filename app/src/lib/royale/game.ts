@@ -1,5 +1,5 @@
 // Client-side mirror of the program's game math, for display only (the chain is the referee).
-import { BLEED_BPS_PER_MIN, CHECKPOINTS, FINAL_CHECKPOINT, StormKind } from "./constants";
+import { BLEED_BPS_PER_MIN, CHECKPOINTS, FINAL_CHECKPOINT, RoomStatus, StormKind } from "./constants";
 import type { PositionState, RoomState } from "./client";
 
 export const intervalOf = (startTs: number, intervalSecs: number, ts: number) =>
@@ -9,6 +9,25 @@ export const checkpointTs = (room: Pick<RoomState, "startTs" | "intervalSecs">, 
   room.startTs + k * room.intervalSecs;
 
 export const roundEndTs = (room: Pick<RoomState, "startTs" | "intervalSecs">) => checkpointTs(room, FINAL_CHECKPOINT);
+
+/** The onchain crank makes every cut. One this late is overdue, so anyone may send it. */
+const OVERDUE_SECS = 3;
+export const cutOverdue = (room: RoomState, now: number) =>
+  room.status === RoomStatus.Live && now > checkpointTs(room, room.nextCheckpoint) + OVERDUE_SECS;
+
+/** Sealing the positions takes a few seconds between start_room and the round clock. */
+const START_SLACK_SECS = 20;
+/**
+ * True for a round that may have nobody left to finish it: a cut is overdue, or it ended unpaid. Solana's
+ * copy of a delegated room is frozen at start_room and has no round clock, so a room still `Starting` there
+ * counts once a whole round has passed.
+ */
+export function unfinished(room: RoomState, delegated: boolean, now: number): boolean {
+  if (room.status === RoomStatus.Ended) return true;
+  if (room.status === RoomStatus.Live) return cutOverdue(room, now);
+  if (room.status !== RoomStatus.Starting || !delegated) return false;
+  return now > room.startedTs + FINAL_CHECKPOINT * room.intervalSecs + START_SLACK_SECS;
+}
 
 export type Storm = { kind: StormKind; asset: number; side: number; interval: number };
 

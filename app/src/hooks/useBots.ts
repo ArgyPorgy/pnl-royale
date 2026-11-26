@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import type { PublicKey } from "@solana/web3.js";
 import type { RoomState } from "@/lib/royale/client";
 import { BOT_COUNT, IS_DEVNET, RoomStatus } from "@/lib/royale/constants";
+import { unfinished } from "@/lib/royale/game";
 
 type Names = ReadonlyMap<string, string>;
 const NONE: Names = new Map();
@@ -39,51 +40,69 @@ export function botsPending(room: RoomState, bots: Names): number {
   return Math.max(0, Math.min(BOT_COUNT - seated, room.maxSeats - room.seatsFilled));
 }
 
-const EVERY_MS = { seat: 4_000, trade: 5_000, wrapUp: 8_000 };
-/** Stop asking once the room is wrapped up, or after this many tries at it. */
-const WRAP_UP_TRIES = 6;
+const EVERY_MS = { seat: 4_000, trade: 5_000, finish: 8_000, lobby: 6_000 };
+/** Stop asking once the room is wrapped up, or after this many tries at the same step. */
+const FINISH_TRIES = 6;
+/** Rooms the lobby nudges at a time. */
+const LOBBY_ROOMS = 3;
+/** The route's time limit: no answer comes after this. */
+const NUDGE_LIMIT_MS = 60_000;
+
+type Reply = { error?: string; errors?: string[]; skipped?: boolean };
+async function nudge(id: string): Promise<Reply> {
+  const res = await fetch("/api/bots", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ room: id }),
+    signal: AbortSignal.timeout(NUDGE_LIMIT_MS),
+  });
+  return (await res.json()) as Reply;
+}
 
 /**
  * While a seated player has the room open, ask the server to run its bots: take seats, trade, and
- * settle. The server decides what is due from chain state, so extra calls are harmless.
+ * settle. Anyone else with the room open asks only for what is left undone: an overdue cut, the commit
+ * or the payout. The server decides what is due from chain state, so extra calls are harmless.
  */
 export function useBotDriver(room: RoomState | null, delegated: boolean, me: PublicKey | null, bots: Names): string | null {
   const [error, setError] = useState<string | null>(null);
-  const state = useRef({ room, delegated });
-  state.current = { room, delegated };
-  const id = room?.roomId.toString() ?? null;
   const seated = !!room && !!me && room.players.some((p) => p.equals(me));
-  const on = IS_DEVNET && seated && bots.size > 0 && id !== null;
+  const state = useRef({ room, delegated, seated });
+  state.current = { room, delegated, seated };
+  const id = room?.roomId.toString() ?? null;
+  const on = IS_DEVNET && bots.size > 0;
 
   useEffect(() => {
-    if (!on) return;
+    if (!on || id === null) return;
     let stop = false;
     let timer: ReturnType<typeof setTimeout>;
-    let wrapUps = 0;
-    const next = () => {
-      const { room: r, delegated: d } = state.current;
-      if (!r) return null;
-      if (r.status === RoomStatus.Open && !d) return botsPending(r, bots) > 0 ? EVERY_MS.seat : 0;
-      if (r.status === RoomStatus.Live) return EVERY_MS.trade;
-      const wrap = !d && (r.status === RoomStatus.Ended || r.status === RoomStatus.Settled);
-      return wrap && wrapUps < WRAP_UP_TRIES ? EVERY_MS.wrapUp : 0;
+    let tries = 0;
+    let step = "";
+    const next = (): { gap: number; finishing: boolean } => {
+      const { room: r, delegated: d, seated: mine } = state.current;
+      if (!r) return { gap: 0, finishing: false };
+      if (mine && r.status === RoomStatus.Open && !d) return { gap: botsPending(r, bots) > 0 ? EVERY_MS.seat : 0, finishing: false };
+      if (mine && r.status === RoomStatus.Live) return { gap: EVERY_MS.trade, finishing: false };
+      // Each cut and each status is a step of its own with a fresh set of tries.
+      const at = `${r.status}:${r.nextCheckpoint}:${d}`;
+      if (at !== step) {
+        step = at;
+        tries = 0;
+      }
+      const due = unfinished(r, d, Date.now() / 1000) || (r.status === RoomStatus.Settled && (mine || !r.rated));
+      return { gap: due && tries < FINISH_TRIES ? EVERY_MS.finish : 0, finishing: true };
     };
     const tick = async () => {
-      const gap = next();
+      const { gap, finishing } = next();
       if (gap) {
         const status = state.current.room?.status ?? 0;
-        if (status >= RoomStatus.Ended) wrapUps += 1;
+        if (finishing) tries += 1;
         try {
-          const res = await fetch("/api/bots", {
-            method: "POST",
-            headers: { "content-type": "application/json" },
-            body: JSON.stringify({ room: id }),
-          });
-          const j = (await res.json()) as { error?: string; errors?: string[]; rated?: boolean; reclaimed?: number };
+          const j = await nudge(id);
           if (stop) return;
           // Trading errors are routine (hold time, a frozen side); a bot that can't sit down is not.
           setError(status === RoomStatus.Open ? (j.error ?? j.errors?.[0] ?? null) : null);
-          if (status === RoomStatus.Settled && !j.errors?.length && !j.error) wrapUps = WRAP_UP_TRIES;
+          if (status === RoomStatus.Settled && !j.skipped && !j.errors?.length && !j.error) tries = FINISH_TRIES;
         } catch {
           /* offline: try again on the next tick */
         }
@@ -97,4 +116,23 @@ export function useBotDriver(room: RoomState | null, delegated: boolean, me: Pub
     };
   }, [on, id, bots]);
   return error;
+}
+
+/** Lobby: finish the rounds whose players have all left, a few at a time. */
+export function useFinishRooms(rooms: (RoomState & { delegated: boolean })[]) {
+  const bots = useBots();
+  const asked = useRef(new Map<string, { tries: number; at: number }>());
+  useEffect(() => {
+    if (!IS_DEVNET || bots.size === 0) return;
+    const now = Date.now();
+    const due = rooms.filter((r) => {
+      const a = asked.current.get(r.roomId.toString());
+      return unfinished(r, r.delegated, now / 1000) && (!a || (a.tries < FINISH_TRIES && now - a.at >= EVERY_MS.lobby));
+    });
+    for (const r of due.slice(0, LOBBY_ROOMS)) {
+      const id = r.roomId.toString();
+      asked.current.set(id, { tries: (asked.current.get(id)?.tries ?? 0) + 1, at: now });
+      nudge(id).catch(() => undefined); // offline: the next refresh asks again
+    }
+  }, [rooms, bots]);
 }

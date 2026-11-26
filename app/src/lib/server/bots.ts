@@ -3,7 +3,8 @@
 //
 // Everything here is stateless and idempotent: bot keys are derived from FAUCET_SECRET_KEY, and what a
 // bot does next is read from chain state, so any server instance can handle any call. The players'
-// browsers nudge `driveBots` while a room is open in a tab.
+// browsers nudge `driveBots` while a room is open in a tab, and any visitor's browser nudges it for a
+// round its players have left: the late cuts, the commit and the payout are permissionless.
 import { createHmac } from "node:crypto";
 import {
   Connection,
@@ -11,6 +12,7 @@ import {
   LAMPORTS_PER_SOL,
   SystemProgram,
   Transaction,
+  type PublicKey,
   type TransactionInstruction,
 } from "@solana/web3.js";
 import {
@@ -27,9 +29,11 @@ import {
   decodePosition,
   decodeRoom,
   ixClosePosition,
+  ixFinalizeRound,
   ixRateRoom,
   ixSetPosition,
   ixSettle,
+  ixTick,
   ixsJoin,
   positionPda,
   roomPda,
@@ -50,7 +54,7 @@ import {
 } from "@/lib/royale/constants";
 import { connectEr, readableError, sendEr, type ErLink } from "@/lib/royale/er";
 import { sendAndConfirm } from "@/lib/royale/l1";
-import { checkpointTs, intervalOf, roundEndTs, stormFor } from "@/lib/royale/game";
+import { checkpointTs, cutOverdue, intervalOf, roundEndTs, stormFor } from "@/lib/royale/game";
 
 type Style = "rider" | "fader" | "degen";
 type Bot = { name: string; style: Style; kp: Keypair };
@@ -66,6 +70,9 @@ const FAUCET_RESERVE = 0.05 * LAMPORTS_PER_SOL;
 const USDC_FLOAT = 100n * 10n ** BigInt(USDC_DECIMALS);
 /** A bot makes at most one decision per bucket, so calling more often changes nothing. */
 const BUCKET_SECS = 10;
+/** A finished room takes a few seconds to come back from the rollup. */
+const RETURN_POLLS = 15;
+const RETURN_POLL_MS = 1_500;
 
 const l1 = new Connection(L1_RPC, "confirmed");
 
@@ -191,6 +198,42 @@ async function tradeBot(room: RoomState, bot: Bot, faucet: Keypair): Promise<boo
   return true;
 }
 
+// ---------------------------------------------------------------- Finishing the round
+
+async function erRoom(link: ErLink, address: PublicKey): Promise<RoomState | null> {
+  const acc = await link.connection.getAccountInfo(address, "processed");
+  return acc?.owner.equals(PROGRAM_ID) ? decodeRoom(address, acc.data as Buffer) : null;
+}
+
+/** Send the cuts nobody else did, oldest first. The program gates each on its own clock, so a repeat does nothing. */
+async function tickOverdue(room: RoomState, link: ErLink, payer: Keypair): Promise<number> {
+  let sent = 0;
+  for (let r: RoomState | null = room; r && cutOverdue(r, Date.now() / 1000); ) {
+    // A limit per cut, so two ticks on one blockhash are never the same transaction.
+    await sendEr(link.connection, [cuLimit(200_000 + r.nextCheckpoint), await ixTick(r)], [payer]);
+    sent += 1;
+    const next = await erRoom(link, r.address);
+    if (next?.status === r.status && next.nextCheckpoint === r.nextCheckpoint) break; // waiting for a fresh price
+    r = next;
+  }
+  return sent;
+}
+
+/** Commit an ended round and wait for it on Solana. Null if it is still on its way: the next call carries on. */
+async function finalizeRoom(room: RoomState, link: ErLink, payer: Keypair, bots: Bot[]): Promise<RoomState | null> {
+  await sendEr(link.connection, [cuLimit(400_000), await ixFinalizeRound(payer.publicKey, room)], [payer]);
+  // The bots' positions come back too, so that their rent can be reclaimed.
+  const keys = [room.address, ...bots.map((b) => positionPda(room.address, b.kp.publicKey))];
+  let back: RoomState | null = null;
+  for (let i = 0; i < RETURN_POLLS; i++) {
+    await new Promise((r) => setTimeout(r, RETURN_POLL_MS));
+    const infos = await l1.getMultipleAccountsInfo(keys, "confirmed").catch(() => []);
+    if (infos[0]?.owner.equals(PROGRAM_ID)) back = decodeRoom(room.address, infos[0].data as Buffer);
+    if (back && infos.every((a) => !a?.owner.equals(DELEGATION_PROGRAM_ID))) break;
+  }
+  return back;
+}
+
 // ---------------------------------------------------------------- After the round
 
 async function settleRoom(room: RoomState, payer: Keypair) {
@@ -216,17 +259,31 @@ async function reclaim(room: RoomState, bots: Bot[]) {
 
 // ---------------------------------------------------------------- Entry point
 
-export type BotReport = { status: number; joined: number; traded: number; settled?: boolean; rated?: boolean; reclaimed?: number; errors: string[] };
-const running = new Map<string, Promise<BotReport>>();
+export type BotReport = {
+  status: number;
+  joined: number;
+  traded: number;
+  ticked?: number;
+  finalized?: boolean;
+  settled?: boolean;
+  rated?: boolean;
+  reclaimed?: number;
+  errors: string[];
+};
+/** A run past the route's time limit is stuck on a dead connection, and must not hold the room up. */
+const RUN_LIMIT_MS = 60_000;
+const running = new Map<string, { since: number; run: Promise<BotReport> }>();
 
-/** Do whatever this room's bots should do right now. Concurrent calls for a room share one run. */
+/** Do whatever this room needs right now. Concurrent calls for a room share one run. */
 export function driveBots(roomId: bigint): Promise<BotReport> {
   const k = roomId.toString();
   const now = running.get(k);
-  if (now) return now;
-  const p = drive(roomId).finally(() => running.delete(k));
-  running.set(k, p);
-  return p;
+  if (now && Date.now() - now.since < RUN_LIMIT_MS) return now.run;
+  const run = drive(roomId).finally(() => {
+    if (running.get(k)?.run === run) running.delete(k);
+  });
+  running.set(k, { since: Date.now(), run });
+  return run;
 }
 
 async function drive(roomId: bigint): Promise<BotReport> {
@@ -250,18 +307,27 @@ async function drive(roomId: bigint): Promise<BotReport> {
   const seated = bots.filter((b) => room.players.some((p) => p.equals(b.kp.publicKey)));
 
   if (delegated) {
-    if (seated.length === 0) return report;
-    const link = await botLink(seated[0]);
-    const live = await link.connection.getAccountInfo(address, "processed");
-    if (!live?.owner.equals(PROGRAM_ID)) return report;
-    room = decodeRoom(address, live.data as Buffer);
+    // Any key may tick and finalize, so a room without bots gets finished too.
+    const helper = seated[0] ?? bots[0];
+    const link = await botLink(helper);
+    const live = await erRoom(link, address);
+    if (!live) return report;
+    room = live;
+    if (cutOverdue(room, Date.now() / 1000)) {
+      report.ticked = await attempt(() => tickOverdue(room, link, helper.kp));
+      room = (await erRoom(link, address)) ?? room;
+    }
     report.status = room.status;
     if (room.status === RoomStatus.Live) {
       const alive = seated.filter((b) => room.elimCheckpoint[room.players.findIndex((p) => p.equals(b.kp.publicKey))] === 0);
       const acted = await Promise.all(alive.map((b) => attempt(() => tradeBot(room, b, faucet))));
       report.traded = acted.filter(Boolean).length;
     }
-    return report;
+    if (room.status !== RoomStatus.Ended) return report;
+    const back = await attempt(() => finalizeRoom(room, link, helper.kp, seated));
+    report.finalized = !!back;
+    if (!back) return report;
+    room = back;
   }
 
   if (room.status === RoomStatus.Open) {
@@ -274,9 +340,8 @@ async function drive(roomId: bigint): Promise<BotReport> {
     return report;
   }
 
-  // Bots may have won, so nobody else is certain to press the payout button.
-  if (seated.length === 0) return report;
-  const payer = seated[0].kp;
+  // Nobody is certain to press the payout button: a bot may have won, or the winner may have left.
+  const payer = seated[0]?.kp ?? faucet;
   if (room.status === RoomStatus.Ended) {
     await attempt(() => settleRoom(room, payer));
     const after = await l1.getAccountInfo(address, "confirmed");

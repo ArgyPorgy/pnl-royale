@@ -8,6 +8,7 @@ import { fmtUsdc } from "@/lib/royale/game";
 import { buildPreview } from "@/lib/ui/preview";
 import { useEr } from "@/hooks/useEr";
 import { useNow, useRoomLive } from "@/hooks/useRoomLive";
+import { useBotDriver, useBots } from "@/hooks/useBots";
 import { TokenStack } from "@/components/brand";
 import { ChartPanel, PlayersTable, RoundProgress, StormBanner, StormCard } from "@/components/room";
 import { TeeBadge } from "@/components/TeeBadge";
@@ -33,6 +34,7 @@ export default function Watch() {
     setPreviewKey(new URLSearchParams(window.location.search).get("preview"));
   }, []);
   const preview = useMemo(() => buildPreview(previewKey === "spectate" || previewKey === "live" ? "spectate" : previewKey), [previewKey]);
+  useBotDriver(preview ? null : live.room, live.delegated, null, useBots());
   const room = preview?.room ?? live.room;
   const prices = preview ? preview.prices : live.prices;
   const history = preview ? preview.history : live.history;

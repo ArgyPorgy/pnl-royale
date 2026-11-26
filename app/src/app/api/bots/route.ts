@@ -1,5 +1,6 @@
 // Devnet house bots. GET lists them (so the UI can label them); POST { room } seats them, trades for
-// them or wraps up, whichever the room's onchain state calls for. Never on mainnet.
+// them, or finishes a round its players have left (late cuts, commit, payout), whichever the room's
+// onchain state calls for. Never on mainnet.
 import { NextResponse } from "next/server";
 import { CLUSTER } from "@/lib/royale/constants";
 import { readableError } from "@/lib/royale/er";

@@ -12,6 +12,7 @@ import { readableError, requestFaucet } from "@/lib/royale/er";
 import { sendAndConfirm } from "@/lib/royale/l1";
 import { finalistsFor, fmtPrice, fmtUsdc } from "@/lib/royale/game";
 import { useRooms } from "@/hooks/useRooms";
+import { useFinishRooms } from "@/hooks/useBots";
 import { useEr } from "@/hooks/useEr";
 import { useMarket } from "@/hooks/useMarket";
 import { HeroArt } from "@/components/HeroArt";
@@ -160,6 +161,7 @@ const STATUS: Record<number, { label: string; tone: "up" | "down" | "neutral" | 
 
 function RoomsTable() {
   const { rooms, error } = useRooms();
+  useFinishRooms(rooms);
   const [tab, setTab] = useState<Tab>("open");
   const groups = useMemo(
     () => ({
