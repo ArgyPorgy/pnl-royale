@@ -9,13 +9,16 @@
 # Spends real SOL: ~3.86 SOL is locked as program-data rent (recoverable with
 # `solana program close` if the program is ever retired), plus ~0.01-0.03 SOL of fees.
 # Resumable: the write buffer keypair is saved, so a rate-limited run can simply be re-run.
+# The program keypair defaults to the backup in ~/.config/solana: a rebuild can replace the copy in
+# target/deploy with a random key, and the preflight refuses a key that doesn't match declare_id.
+# Entries are capped at MAX_ENTRY_USDC (default 5) until the program has been audited.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
 AGAVE="${AGAVE_BIN:-$HOME/.local/share/solana/install/releases/3.1.9/solana-release/bin}"
 export PATH="$AGAVE:$PATH"
 ADMIN_KEYPAIR="${ADMIN_KEYPAIR:?set ADMIN_KEYPAIR (deployer = upgrade authority = config admin)}"
-PROGRAM_KEYPAIR="${PROGRAM_KEYPAIR:-target/deploy/royale-keypair.json}"
+PROGRAM_KEYPAIR="${PROGRAM_KEYPAIR:-$HOME/.config/solana/royale-program-keypair.json}"
 BUFFER_KEYPAIR="${BUFFER_KEYPAIR:-$HOME/.config/solana/royale-mainnet-buffer.json}"
 L1_RPC="${L1_RPC:-https://api.mainnet-beta.solana.com}"
 PRIORITY="${PRIORITY_MICROLAMPORTS:-50000}"
@@ -26,6 +29,7 @@ export NEXT_PUBLIC_L1_RPC="$L1_RPC"
 export NEXT_PUBLIC_ER_RPC="${NEXT_PUBLIC_ER_RPC:-https://mainnet-tee.magicblock.app}"
 export NEXT_PUBLIC_ER_VALIDATOR="${NEXT_PUBLIC_ER_VALIDATOR:-MTEWGuqxUpYZGFJQcp8tLN7x5v9BSeoFHYWQQ3n3xzo}"
 export NEXT_PUBLIC_USDC_MINT=EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v
+export MIN_ENTRY_USDC="${MIN_ENTRY_USDC:-1}" MAX_ENTRY_USDC="${MAX_ENTRY_USDC:-5}" FEE_BPS="${FEE_BPS:-500}"
 export ADMIN_KEYPAIR PROGRAM_KEYPAIR MAX_LEN
 
 PROGRAM_ID=$(solana-keygen pubkey "$PROGRAM_KEYPAIR")
