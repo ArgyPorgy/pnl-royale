@@ -18,7 +18,7 @@ Battle royale for traders. Up to 16 players stake USDC and trade live Pyth Lazer
 **Network:** Solana mainnet + MagicBlock mainnet TEE (`mainnet-tee.magicblock.app`), live since 2026-11-26 with real USDC, and Solana devnet + MagicBlock devnet TEE (`devnet-tee.magicblock.app`) as the free demo. Both use validator `MTEWGuqxUpYZGFJQcp8tLN7x5v9BSeoFHYWQQ3n3xzo` on the same build (`magicblock-core 1.1.1`, `8886db2`).
 
 **Mainnet:**
-- Program: https://solscan.io/account/7t2L4552mactTH9NiCcGQ3LeUgCBYi81B1qMfGTeRBJ5 (onchain bytes match the tested build)
+- Program: https://solscan.io/account/7bs2GJKVpupZgmwGWteQhnSup3e1wuNtQ4yqfd6Xx89T (redeployed with close_room)
 - Deploy: https://solscan.io/tx/3QbzcZKiE75iJ1yrn4wLpeZci1yHbWm6gEP8g84yWsnVuV9ByEXCi5QM4pSEoh28stKCYszHojhh3oqMHYTavwvV
 - Config (5% fee, $1–$5 entries): https://solscan.io/tx/ns2q3EHtgWWTYzB5JS6T6XnQUuccojmGcMcv538aqzakJMZM72DfN2BHt7yihVXwuyy3NVNbQwj9bKy4AAV9MHy
 
@@ -31,7 +31,7 @@ Battle royale for traders. Up to 16 players stake USDC and trade live Pyth Lazer
 - TEE-side signatures (`begin_round` scheduling the crank + VRF tasks, `finalize_round`) are in `docs/devnet-runs/` (TEE transactions need an auth token to view)
 
 **Boost addresses:**
-1. Program ID: `7t2L4552mactTH9NiCcGQ3LeUgCBYi81B1qMfGTeRBJ5` (live on mainnet)
+1. Program ID: `7bs2GJKVpupZgmwGWteQhnSup3e1wuNtQ4yqfd6Xx89T` on mainnet, `7t2L4552mactTH9NiCcGQ3LeUgCBYi81B1qMfGTeRBJ5` on devnet
 2. Relayer / fee payer wallet (mainnet): `9XdTMBjgXuNYtPKX4RCmY67XUKK1UPDBbYHKGmxHBaYE`
 3. Fee vault: optional (Private Payments not used)
 

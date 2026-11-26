@@ -267,10 +267,11 @@ export function decodeRating(data: Buffer): RatingState {
  * True if `address` is this program's Room PDA for the decoded room id. Needed when scanning the
  * Delegation Program: every Anchor program with a `Room` account shares the discriminator.
  */
-export function isOurRoom(address: PublicKey, data: Buffer): RoomState | null {
+export function isOurRoom(address: PublicKey, data: Buffer, programId: PublicKey = PROGRAM_ID): RoomState | null {
   try {
     const r = decodeRoom(address, data);
-    return roomPda(r.roomId).equals(address) ? r : null;
+    const pda = PublicKey.findProgramAddressSync([SEEDS.room, u64le(r.roomId)], programId)[0];
+    return pda.equals(address) ? r : null;
   } catch {
     return null;
   }

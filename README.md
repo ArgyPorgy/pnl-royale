@@ -18,7 +18,7 @@ Demo script: [`docs/DEMO.md`](docs/DEMO.md) · Submission copy: [`docs/SUBMISSIO
 
 | | |
 |---|---|
-| Program | `royale` (Anchor 1.0.2, `ephemeral-rollups-sdk` 0.18.0), ID `7t2L4552mactTH9NiCcGQ3LeUgCBYi81B1qMfGTeRBJ5`: **live on mainnet** ([Solscan](https://solscan.io/account/7t2L4552mactTH9NiCcGQ3LeUgCBYi81B1qMfGTeRBJ5)) and devnet ([Solscan](https://solscan.io/account/7t2L4552mactTH9NiCcGQ3LeUgCBYi81B1qMfGTeRBJ5?cluster=devnet)) |
+| Program | `royale` (Anchor 1.0.2, `ephemeral-rollups-sdk` 0.18.0), **live on mainnet** as `7bs2GJKVpupZgmwGWteQhnSup3e1wuNtQ4yqfd6Xx89T` ([Solscan](https://solscan.io/account/7bs2GJKVpupZgmwGWteQhnSup3e1wuNtQ4yqfd6Xx89T)) and on devnet as `7t2L4552mactTH9NiCcGQ3LeUgCBYi81B1qMfGTeRBJ5` ([Solscan](https://solscan.io/account/7t2L4552mactTH9NiCcGQ3LeUgCBYi81B1qMfGTeRBJ5?cluster=devnet)) |
 | Private ER | `https://mainnet-tee.magicblock.app`, validator `MTEWGuqxUpYZGFJQcp8tLN7x5v9BSeoFHYWQQ3n3xzo` (devnet TEE runs the same build, `1.1.1 / 8886db2`) |
 | MagicBlock features | PER permissions · delegation · commit + undelegate · cranks (`ScheduleTask`) · VRF (scoped identity) · session keys (V2) · pricing oracle on the ER |
 | Money | Real USDC in an L1 escrow PDA that is never delegated; only `settle` (winners) or `refund` (cancel) can move it |

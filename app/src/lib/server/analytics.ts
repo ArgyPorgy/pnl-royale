@@ -5,7 +5,7 @@ import bs58 from "bs58";
 import { Connection, PublicKey } from "@solana/web3.js";
 import { DELEGATION_PROGRAM_ID } from "@magicblock-labs/ephemeral-rollups-sdk";
 import { coder, configPda, decodeRating, isOurRoom, ratingDiscriminator, roomDiscriminator, type RoomState } from "@/lib/royale/client";
-import { CLUSTER, L1_RPC, PROGRAM_ID, RoomStatus, StormKind, feedById } from "@/lib/royale/constants";
+import { CLUSTER, L1_RPC, PROGRAM_ID, PROGRAM_IDS, RoomStatus, StormKind, feedById } from "@/lib/royale/constants";
 import { BOT_SHARE_SINCE, botShare, roomPayouts as payouts } from "@/lib/royale/game";
 import { houseBots } from "@/lib/server/bots";
 
@@ -65,14 +65,17 @@ export type Analytics = Awaited<ReturnType<typeof compute>>;
 
 async function compute(net: Network) {
   const l1 = new Connection(RPC[net], "confirmed");
+  // Each network has its own program ID; this server's own network may override it by env.
+  const pid = net === CLUSTER ? PROGRAM_ID : new PublicKey(PROGRAM_IDS[net]);
+  const cfgKey = net === CLUSTER ? configPda() : PublicKey.findProgramAddressSync([Buffer.from("cfg")], pid)[0];
   const disc = bs58.encode(roomDiscriminator());
   const [own, delegated, ratingAccs, cfgAcc] = await Promise.all([
-    l1.getProgramAccounts(PROGRAM_ID, { filters: [{ memcmp: { offset: 0, bytes: disc } }] }),
+    l1.getProgramAccounts(pid, { filters: [{ memcmp: { offset: 0, bytes: disc } }] }),
     l1.getProgramAccounts(DELEGATION_PROGRAM_ID, { filters: [{ memcmp: { offset: 0, bytes: disc } }] }).catch(() => []),
-    l1.getProgramAccounts(PROGRAM_ID, { filters: [{ memcmp: { offset: 0, bytes: bs58.encode(ratingDiscriminator()) } }] }),
-    l1.getAccountInfo(configPda()),
+    l1.getProgramAccounts(pid, { filters: [{ memcmp: { offset: 0, bytes: bs58.encode(ratingDiscriminator()) } }] }),
+    l1.getAccountInfo(cfgKey),
   ]);
-  const rooms = [...own, ...delegated].flatMap((a) => isOurRoom(a.pubkey, a.account.data as Buffer) ?? []);
+  const rooms = [...own, ...delegated].flatMap((a) => isOurRoom(a.pubkey, a.account.data as Buffer, pid) ?? []);
   const bots = botNames(net);
   const isBot = (p: PublicKey) => bots.has(p.toBase58());
 
@@ -189,7 +192,7 @@ async function compute(net: Network) {
   return {
     network: net,
     at: now,
-    program: PROGRAM_ID.toBase58(),
+    program: pid.toBase58(),
     config: cfg
       ? {
           feeBps: cfg.feeBps as number,

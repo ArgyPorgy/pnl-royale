@@ -57,7 +57,16 @@ export const IS_TEE = ER_RPC.includes("tee");
 export const IS_DEVNET = CLUSTER !== "mainnet";
 export const USDC_MINT = new PublicKey(env("NEXT_PUBLIC_USDC_MINT", DEFAULTS[CLUSTER].usdc));
 export const USDC_DECIMALS = 6;
-export const PROGRAM_ID = new PublicKey(env("NEXT_PUBLIC_PROGRAM_ID", (idl as { address: string }).address));
+/**
+ * Program ID per network. Mainnet was redeployed with close_room under a new ID (the first mainnet
+ * program was closed, and a closed program ID can never be reused); devnet still runs the original ID.
+ */
+export const PROGRAM_IDS: Record<Cluster, string> = {
+  mainnet: (idl as { address: string }).address,
+  devnet: "7t2L4552mactTH9NiCcGQ3LeUgCBYi81B1qMfGTeRBJ5",
+  localnet: (idl as { address: string }).address,
+};
+export const PROGRAM_ID = new PublicKey(env("NEXT_PUBLIC_PROGRAM_ID", PROGRAM_IDS[CLUSTER]));
 /** close_room pays room and vault rent only to this wallet. */
 export const RENT_RECIPIENT = new PublicKey("DpGpgVgUyZMCq2HX4mnACi8tXALhE7U1HSQqgUSk3cTh");
 export const EXPLORER_SUFFIX = DEFAULTS[CLUSTER].explorer;

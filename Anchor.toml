@@ -6,13 +6,13 @@ resolution = true
 skip-lint = false
 
 [programs.localnet]
-royale = "7t2L4552mactTH9NiCcGQ3LeUgCBYi81B1qMfGTeRBJ5"
+royale = "7bs2GJKVpupZgmwGWteQhnSup3e1wuNtQ4yqfd6Xx89T"
 
 [programs.devnet]
 royale = "7t2L4552mactTH9NiCcGQ3LeUgCBYi81B1qMfGTeRBJ5"
 
 [programs.mainnet]
-royale = "7t2L4552mactTH9NiCcGQ3LeUgCBYi81B1qMfGTeRBJ5"
+royale = "7bs2GJKVpupZgmwGWteQhnSup3e1wuNtQ4yqfd6Xx89T"
 
 [registry]
 url = "https://api.apr.dev"

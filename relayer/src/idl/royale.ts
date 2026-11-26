@@ -5,7 +5,7 @@
  * IDL can be found at `target/idl/royale.json`.
  */
 export type Royale = {
-  "address": "7t2L4552mactTH9NiCcGQ3LeUgCBYi81B1qMfGTeRBJ5",
+  "address": "7bs2GJKVpupZgmwGWteQhnSup3e1wuNtQ4yqfd6Xx89T",
   "metadata": {
     "name": "royale",
     "version": "0.1.0",
@@ -134,7 +134,7 @@ export type Royale = {
             "Scoped VRF identity: its signature proves the VRF program issued this callback for us."
           ],
           "signer": true,
-          "address": "H9ekrXhF4y3ipfx7XmUFZwb2cSojy4sKBR2Tybx5Gum2"
+          "address": "AqRbqZK8qZYFm5VmwYhgDQnicyiHYYNPMdFxRqAwZnL3"
         },
         {
           "name": "room",
@@ -507,38 +507,38 @@ export type Royale = {
             "program": {
               "kind": "const",
               "value": [
-                102,
-                56,
-                62,
-                181,
-                168,
-                156,
-                55,
-                165,
-                223,
-                37,
-                234,
-                131,
-                173,
-                112,
-                59,
-                28,
-                241,
-                66,
-                242,
-                206,
-                146,
-                151,
-                96,
-                232,
-                176,
-                104,
+                98,
+                20,
+                109,
+                203,
+                86,
+                128,
+                73,
                 22,
-                21,
-                184,
-                114,
-                33,
-                86
+                2,
+                200,
+                148,
+                50,
+                205,
+                66,
+                18,
+                224,
+                240,
+                31,
+                126,
+                178,
+                104,
+                239,
+                89,
+                161,
+                116,
+                214,
+                245,
+                129,
+                194,
+                47,
+                212,
+                126
               ]
             }
           }
@@ -640,7 +640,7 @@ export type Royale = {
         },
         {
           "name": "ownerProgram",
-          "address": "7t2L4552mactTH9NiCcGQ3LeUgCBYi81B1qMfGTeRBJ5"
+          "address": "7bs2GJKVpupZgmwGWteQhnSup3e1wuNtQ4yqfd6Xx89T"
         },
         {
           "name": "delegationProgram",
@@ -750,7 +750,7 @@ export type Royale = {
           "docs": [
             "Only the program's upgrade authority can create the config (no front-running on deploy)."
           ],
-          "address": "7t2L4552mactTH9NiCcGQ3LeUgCBYi81B1qMfGTeRBJ5"
+          "address": "7bs2GJKVpupZgmwGWteQhnSup3e1wuNtQ4yqfd6Xx89T"
         },
         {
           "name": "programData"
@@ -1375,7 +1375,7 @@ export type Royale = {
         },
         {
           "name": "programIdentity",
-          "address": "5u1BpK4XyYSJjhxPe74LPxU8jLQZUugpLMMrfrnsEVFB"
+          "address": "EBDkMF44koAzmX1nwQaj9EshPaazHc92R1RQmGD6Zywf"
         },
         {
           "name": "oracleQueue",
@@ -1622,38 +1622,38 @@ export type Royale = {
             "program": {
               "kind": "const",
               "value": [
-                102,
-                56,
-                62,
-                181,
-                168,
-                156,
-                55,
-                165,
-                223,
-                37,
-                234,
-                131,
-                173,
-                112,
-                59,
-                28,
-                241,
-                66,
-                242,
-                206,
-                146,
-                151,
-                96,
-                232,
-                176,
-                104,
+                98,
+                20,
+                109,
+                203,
+                86,
+                128,
+                73,
                 22,
-                21,
-                184,
-                114,
-                33,
-                86
+                2,
+                200,
+                148,
+                50,
+                205,
+                66,
+                18,
+                224,
+                240,
+                31,
+                126,
+                178,
+                104,
+                239,
+                89,
+                161,
+                116,
+                214,
+                245,
+                129,
+                194,
+                47,
+                212,
+                126
               ]
             }
           }
@@ -1738,7 +1738,7 @@ export type Royale = {
         },
         {
           "name": "ownerProgram",
-          "address": "7t2L4552mactTH9NiCcGQ3LeUgCBYi81B1qMfGTeRBJ5"
+          "address": "7bs2GJKVpupZgmwGWteQhnSup3e1wuNtQ4yqfd6Xx89T"
         },
         {
           "name": "delegationProgram",
