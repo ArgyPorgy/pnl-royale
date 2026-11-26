@@ -69,7 +69,7 @@ export default function Watch() {
           <TeeBadge er={er} error={erError} />
         </div>
       </div>
-      {room.status !== RoomStatus.Open && room.status !== RoomStatus.Cancelled && <GameFx room={room} now={now} me={null} bots={bots} />}
+      {room.status !== RoomStatus.Open && room.status !== RoomStatus.Cancelled && <GameFx room={room} now={now} me={null} />}
       {isLive && <StormBanner room={room} now={now} />}
       {isLive && <RoundProgress room={room} now={now} />}
       <div className="grid gap-5 xl:grid-cols-[1fr_400px]">
