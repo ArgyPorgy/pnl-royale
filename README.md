@@ -10,6 +10,8 @@ Open the app and click **⚡ Play instantly**. A devnet burner wallet is created
 
 On mainnet, connect Phantom or Backpack with real USDC and a little SOL for fees. Entries are $1–$5, and the house bots join rooms with an entry up to $1, funded from a pool wallet with daily limits.
 
+**Analytics** (`/analytics`) shows mainnet and devnet side by side, read live from chain: volume (players and house bots apart), revenue from fees, payouts to winners, rounds, players, the house bots' result, daily volume and rounds, room outcomes, the markets traded, the storms MagicBlock VRF fired, the Elo leaderboard and recent rooms.
+
 Demo script: [`docs/DEMO.md`](docs/DEMO.md) · Submission copy: [`docs/SUBMISSION.md`](docs/SUBMISSION.md)
 
 | | |
@@ -230,7 +232,7 @@ cp app/.env.example app/.env.local && npm run dev   # http://localhost:3000
    ```
    `sweep-players` closes each throwaway player's position, returns their USDC to the admin, closes their token account, and empties their SOL exactly (validated on devnet: 0 lamports left).
 5. **Relayer:** `cp relayer/.env.example relayer/.env`, then `npm run relayer`, or `docker build -f relayer/Dockerfile -t royale-relayer .` from the repo root. Its fee payer is a Boost address.
-6. **Web app:** deploy `app/` to Vercel (Root Directory `app`; npm workspaces are detected). Devnet needs no `NEXT_PUBLIC_*` overrides, but needs one server secret: `FAUCET_SECRET_KEY`, the JSON byte array of the test-USDC mint authority (`~/.config/solana/royale-devnet-deployer.json`). Without it the burner still works, but players must bring their own devnet funds. On mainnet, set `NEXT_PUBLIC_CLUSTER=mainnet`, a Helius/Triton `NEXT_PUBLIC_L1_RPC` and, for house bots, `BOT_POOL_SECRET_KEY`; the faucet refuses to run there.
+6. **Web app:** deploy `app/` to Vercel (Root Directory `app`; npm workspaces are detected). Devnet needs no `NEXT_PUBLIC_*` overrides, but needs one server secret: `FAUCET_SECRET_KEY`, the JSON byte array of the test-USDC mint authority (`~/.config/solana/royale-devnet-deployer.json`). Without it the burner still works, but players must bring their own devnet funds. On mainnet, set `NEXT_PUBLIC_CLUSTER=mainnet`, a Helius/Triton `NEXT_PUBLIC_L1_RPC` and, for house bots, `BOT_POOL_SECRET_KEY`; the faucet refuses to run there. On both sites, set `MAINNET_RPC_URL` (server-only) so `/analytics` reads mainnet through your own RPC rather than the public one.
 
 ### Mainnet preflight (read-only, last run 2026-11-26 through Helius, just before the deploy)
 
