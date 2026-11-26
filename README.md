@@ -2,17 +2,19 @@
 
 **Battle royale for traders.** Up to 16 players stake USDC on Solana and trade live Pyth Lazer prices with **hidden positions** sealed inside MagicBlock's Private Ephemeral Rollup (TEE). Every interval an **onchain crank** cuts the lowest equity, **VRF storms** change the rules, and the finalists split the pot in USDC on Solana L1. Players sign one wallet popup to join. After that, every trade is a gasless ER transaction signed by a browser session key.
 
-Built for MagicBlock Solana Blitz v10 (Entertainment Finance). **Live on Solana devnet with MagicBlock's devnet TEE.** That's the same validator build as mainnet, and mainnet is prepped and waiting on the deploy deposit.
+Built for MagicBlock Solana Blitz v10 (Entertainment Finance). **Live on Solana mainnet and devnet**, both running on MagicBlock's private rollup (TEE). Mainnet plays for real USDC. Devnet is the free demo with test funds.
 
 ### Try it
 
 Open the app and click **⚡ Play instantly**. A devnet burner wallet is created in your browser, and the built-in faucet tops it up with devnet SOL and test USDC when you create or join a room. Phantom and Backpack on devnet work too. When you take a seat, **three labelled house bots join automatically**, so every room reaches the four-player minimum. Invite more people with the room link, or press **Start** as the room's host at any point from four players up.
 
+On mainnet, connect Phantom or Backpack with real USDC and a little SOL for fees. Entries are $1–$5, and the house bots join rooms with an entry up to $1, funded from a pool wallet with daily limits.
+
 Demo script: [`docs/DEMO.md`](docs/DEMO.md) · Submission copy: [`docs/SUBMISSION.md`](docs/SUBMISSION.md)
 
 | | |
 |---|---|
-| Program | `royale` (Anchor 1.0.2, `ephemeral-rollups-sdk` 0.18.0), ID `7t2L4552mactTH9NiCcGQ3LeUgCBYi81B1qMfGTeRBJ5`: **live on devnet** ([Solscan](https://solscan.io/account/7t2L4552mactTH9NiCcGQ3LeUgCBYi81B1qMfGTeRBJ5?cluster=devnet)), mainnet-ready |
+| Program | `royale` (Anchor 1.0.2, `ephemeral-rollups-sdk` 0.18.0), ID `7t2L4552mactTH9NiCcGQ3LeUgCBYi81B1qMfGTeRBJ5`: **live on mainnet** ([Solscan](https://solscan.io/account/7t2L4552mactTH9NiCcGQ3LeUgCBYi81B1qMfGTeRBJ5)) and devnet ([Solscan](https://solscan.io/account/7t2L4552mactTH9NiCcGQ3LeUgCBYi81B1qMfGTeRBJ5?cluster=devnet)) |
 | Private ER | `https://mainnet-tee.magicblock.app`, validator `MTEWGuqxUpYZGFJQcp8tLN7x5v9BSeoFHYWQQ3n3xzo` (devnet TEE runs the same build, `1.1.1 / 8886db2`) |
 | MagicBlock features | PER permissions · delegation · commit + undelegate · cranks (`ScheduleTask`) · VRF (scoped identity) · session keys (V2) · pricing oracle on the ER |
 | Money | Real USDC in an L1 escrow PDA that is never delegated; only `settle` (winners) or `refund` (cancel) can move it |
@@ -20,6 +22,17 @@ Demo script: [`docs/DEMO.md`](docs/DEMO.md) · Submission copy: [`docs/SUBMISSIO
 ---
 
 ## What's verified
+
+### Live on mainnet (deployed 2026-11-26)
+
+| | |
+|---|---|
+| Program | `7t2L…RBJ5`, deployed in slot 474107969 ([deploy tx](https://solscan.io/tx/3QbzcZKiE75iJ1yrn4wLpeZci1yHbWm6gEP8g84yWsnVuV9ByEXCi5QM4pSEoh28stKCYszHojhh3oqMHYTavwvV)). The onchain bytes match the build that passed all 29 tests (sha256 `cac611ca…`) |
+| Upgrade authority | `2YuKdKLGQupshkGX5aUQDzAJrTAgkQTQysrfWLVSheYs` |
+| Config | [`46U3…fiAS`](https://solscan.io/account/46U3F8wHvwk1WdNZeVRYy64Tyw1mYKhpdXqwq3acfiAS): 5% fee, entries $1–$5, mainnet USDC, not paused ([setup tx](https://solscan.io/tx/ns2q3EHtgWWTYzB5JS6T6XnQUuccojmGcMcv538aqzakJMZM72DfN2BHt7yihVXwuyy3NVNbQwj9bKy4AAV9MHy)) |
+| Fee vault | `5rd3w56kth1XkBXCgX6BxSdK3gvRhrHNgPMsfjzM1H3K` (the admin's USDC account) |
+| House bot pool | `C11EHHAWXFsPrrSWL1C5f6m1qksb3soVSWKJ6z2YApKa`, funded with 0.25 SOL and 15 USDC |
+| Cost | 3.87 SOL: 3.86 SOL locked as program rent (back if the program is ever closed), about 0.008 SOL in fees and small accounts |
 
 ### Live on the devnet TEE (same validator build as mainnet: `magicblock-core 1.1.1`, `8886db2`)
 
@@ -70,7 +83,7 @@ Everything below runs with `npm run test:program`.
 **Live mainnet checks** (read-only, `npx tsx scripts/smoke-tee.ts`): TEE remote attestation verified, an auth token issued from our network (smoke test T4), and all 24 whitelisted feeds live on the TEE, each under 1 s old.
 
 **Not yet verified:**
-- **The mainnet deploy:** it needs about 3.9 SOL, almost all a refundable rent deposit. Everything else in the mainnet preflight passes.
+- **A round on mainnet:** the program and config are live, but no room has been played there yet. Every round so far ran on devnet, which runs the same validator build.
 - **A browser extension wallet signing in the UI:** the browser round used the burner wallet, which goes through the same wallet-adapter `signTransaction` path.
 
 ---
@@ -219,7 +232,7 @@ cp app/.env.example app/.env.local && npm run dev   # http://localhost:3000
 5. **Relayer:** `cp relayer/.env.example relayer/.env`, then `npm run relayer`, or `docker build -f relayer/Dockerfile -t royale-relayer .` from the repo root. Its fee payer is a Boost address.
 6. **Web app:** deploy `app/` to Vercel (Root Directory `app`; npm workspaces are detected). Devnet needs no `NEXT_PUBLIC_*` overrides, but needs one server secret: `FAUCET_SECRET_KEY`, the JSON byte array of the test-USDC mint authority (`~/.config/solana/royale-devnet-deployer.json`). Without it the burner still works, but players must bring their own devnet funds. On mainnet, set `NEXT_PUBLIC_CLUSTER=mainnet`, a Helius/Triton `NEXT_PUBLIC_L1_RPC` and, for house bots, `BOT_POOL_SECRET_KEY`; the faucet refuses to run there.
 
-### Mainnet readiness (preflight, read-only, run 2026-11-23)
+### Mainnet preflight (read-only, last run 2026-11-26 through Helius, just before the deploy)
 
 | Check | Result |
 |---|---|
@@ -231,7 +244,7 @@ cp app/.env.example app/.env.local && npm run dev   # http://localhost:3000
 | Keys | mainnet admin `2YuKdKLGQupshkGX5aUQDzAJrTAgkQTQysrfWLVSheYs`, relayer `9XdTMBjgXuNYtPKX4RCmY67XUKK1UPDBbYHKGmxHBaYE`, bot pool `C11EHHAWXFsPrrSWL1C5f6m1qksb3soVSWKJ6z2YApKa` (files in `~/.config/solana`, `chmod 600`; back them up) |
 
 **Costs:**
-- **Deploy:** about 3.89 SOL. The loader refunds the 3.75 SOL write buffer into the program data, so this is not double. 3.86 SOL stays locked as program rent, and comes back if the program is ever closed.
+- **Deploy:** 3.87 SOL on 2026-11-26. The loader refunds the 3.75 SOL write buffer into the program data, so this is not double. 3.86 SOL stays locked as program rent, and comes back if the program is ever closed.
 - **Per round, net after `sweep-players`:** about 0.03–0.04 SOL for 4–6 players. Most of it is permanent rent for the room, rating and delegation records, plus fees.
 - **Priority fees:** about 0.000015 SOL per L1 transaction.
 - **USDC:** entries return to the admin through the sweep. The 5% fee goes to the fee vault.
