@@ -1,10 +1,10 @@
-// Devnet house bots. GET lists them (so the UI can label them); POST { room } seats them, trades for
-// them, or finishes a round its players have left (late cuts, commit, payout), whichever the room's
-// onchain state calls for. Never on mainnet.
+// House bots. GET lists them (so the UI can label them) and their limits; GET ?pool=1 adds the pool's
+// balances and what to top up. POST { room } seats them, trades for them, or finishes a round its
+// players have left (late cuts, commit, payout), whichever the room's onchain state calls for.
+// Off unless a pool key is set (BOT_POOL_SECRET_KEY; devnet falls back to the faucet key).
 import { NextResponse } from "next/server";
-import { CLUSTER } from "@/lib/royale/constants";
 import { readableError } from "@/lib/royale/er";
-import { driveBots, houseBots } from "@/lib/server/bots";
+import { LIMITS, driveBots, houseBots, poolStatus } from "@/lib/server/bots";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -13,12 +13,20 @@ export const maxDuration = 60;
 const MIN_GAP_MS = 2_000;
 const last = new Map<string, number>();
 
-export async function GET() {
-  return NextResponse.json({ bots: houseBots().map((b) => ({ address: b.kp.publicKey.toBase58(), name: b.name })) });
+export async function GET(req: Request) {
+  const bots = houseBots().map((b) => ({ address: b.kp.publicKey.toBase58(), name: b.name }));
+  const body: Record<string, unknown> = { bots, limits: LIMITS };
+  if (new URL(req.url).searchParams.has("pool")) {
+    try {
+      body.pool = await poolStatus();
+    } catch (e) {
+      body.poolError = readableError(e);
+    }
+  }
+  return NextResponse.json(body);
 }
 
 export async function POST(req: Request) {
-  if (CLUSTER === "mainnet") return NextResponse.json({ error: "bots are devnet-only" }, { status: 403 });
   let id: bigint;
   try {
     const body = (await req.json()) as { room?: string };

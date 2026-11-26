@@ -2,45 +2,54 @@
 import { useEffect, useRef, useState } from "react";
 import type { PublicKey } from "@solana/web3.js";
 import type { RoomState } from "@/lib/royale/client";
-import { BOT_COUNT, IS_DEVNET, RoomStatus } from "@/lib/royale/constants";
+import { BOT_COUNT, RoomStatus, USDC_DECIMALS } from "@/lib/royale/constants";
 import { unfinished } from "@/lib/royale/game";
 
 type Names = ReadonlyMap<string, string>;
-const NONE: Names = new Map();
-let roster: Promise<Names> | null = null;
+type Roster = { names: Names; maxEntry: bigint | null };
+const NONE: Roster = { names: new Map(), maxEntry: null };
+let roster: Promise<Roster> | null = null;
 
-function loadRoster(): Promise<Names> {
+function loadRoster(): Promise<Roster> {
   return (roster ??= fetch("/api/bots")
     .then((r) => r.json())
-    .then((j: { bots?: { address: string; name: string }[] }) => new Map((j.bots ?? []).map((b) => [b.address, b.name])))
+    .then((j: { bots?: { address: string; name: string }[]; limits?: { maxEntry?: number | null } }) => ({
+      names: new Map((j.bots ?? []).map((b) => [b.address, b.name])),
+      maxEntry: typeof j.limits?.maxEntry === "number" ? BigInt(Math.round(j.limits.maxEntry * 10 ** USDC_DECIMALS)) : null,
+    }))
     .catch(() => {
       roster = null;
       return NONE;
     }));
 }
 
-/** House bots by address. Empty on mainnet, or when the server has no bot key. */
-export function useBots(): Names {
-  const [bots, setBots] = useState<Names>(NONE);
+function useRoster(): Roster {
+  const [r, setR] = useState<Roster>(NONE);
   useEffect(() => {
-    if (!IS_DEVNET) return;
     let stop = false;
-    loadRoster().then((b) => !stop && setBots(b));
+    loadRoster().then((x) => !stop && setR(x));
     return () => {
       stop = true;
     };
   }, []);
-  return bots;
+  return r;
 }
 
-/** Bots still expected in an open room (three per room, never past the last seat). */
-export function botsPending(room: RoomState, bots: Names): number {
+/** House bots by address. Empty when the server has no bot pool. */
+export const useBots = (): Names => useRoster().names;
+
+/** The largest entry, in USDC base units, of a room the bots will join. Null when there is no cap. */
+export const useBotMaxEntry = (): bigint | null => useRoster().maxEntry;
+
+/** Bots still expected in an open room (three per room, never past the last seat or the entry cap). */
+export function botsPending(room: RoomState, bots: Names, maxEntry: bigint | null = null): number {
   if (room.status !== RoomStatus.Open || bots.size === 0) return 0;
+  if (maxEntry !== null && room.entryAmount > maxEntry) return 0;
   const seated = room.players.filter((p) => bots.has(p.toBase58())).length;
   return Math.max(0, Math.min(BOT_COUNT - seated, room.maxSeats - room.seatsFilled));
 }
 
-const EVERY_MS = { seat: 4_000, trade: 5_000, finish: 8_000, lobby: 6_000 };
+const EVERY_MS = { seat: 4_000, held: 15_000, trade: 5_000, finish: 8_000, lobby: 6_000 };
 /** Stop asking once the room is wrapped up, or after this many tries at the same step. */
 const FINISH_TRIES = 6;
 /** Rooms the lobby nudges at a time. */
@@ -48,7 +57,7 @@ const LOBBY_ROOMS = 3;
 /** The route's time limit: no answer comes after this. */
 const NUDGE_LIMIT_MS = 60_000;
 
-type Reply = { error?: string; errors?: string[]; skipped?: boolean };
+type Reply = { error?: string; errors?: string[]; skipped?: boolean; paused?: string };
 async function nudge(id: string): Promise<Reply> {
   const res = await fetch("/api/bots", {
     method: "POST",
@@ -70,7 +79,7 @@ export function useBotDriver(room: RoomState | null, delegated: boolean, me: Pub
   const state = useRef({ room, delegated, seated });
   state.current = { room, delegated, seated };
   const id = room?.roomId.toString() ?? null;
-  const on = IS_DEVNET && bots.size > 0;
+  const on = bots.size > 0;
 
   useEffect(() => {
     if (!on || id === null) return;
@@ -78,10 +87,12 @@ export function useBotDriver(room: RoomState | null, delegated: boolean, me: Pub
     let timer: ReturnType<typeof setTimeout>;
     let tries = 0;
     let step = "";
+    // When the server holds the bots back (a limit, an empty pool), ask less often.
+    let held = false;
     const next = (): { gap: number; finishing: boolean } => {
       const { room: r, delegated: d, seated: mine } = state.current;
       if (!r) return { gap: 0, finishing: false };
-      if (mine && r.status === RoomStatus.Open && !d) return { gap: botsPending(r, bots) > 0 ? EVERY_MS.seat : 0, finishing: false };
+      if (mine && r.status === RoomStatus.Open && !d) return { gap: botsPending(r, bots) > 0 ? (held ? EVERY_MS.held : EVERY_MS.seat) : 0, finishing: false };
       if (mine && r.status === RoomStatus.Live) return { gap: EVERY_MS.trade, finishing: false };
       // Each cut and each status is a step of its own with a fresh set of tries.
       const at = `${r.status}:${r.nextCheckpoint}:${d}`;
@@ -101,7 +112,9 @@ export function useBotDriver(room: RoomState | null, delegated: boolean, me: Pub
           const j = await nudge(id);
           if (stop) return;
           // Trading errors are routine (hold time, a frozen side); a bot that can't sit down is not.
-          setError(status === RoomStatus.Open ? (j.error ?? j.errors?.[0] ?? null) : null);
+          held = !!j.paused;
+          const failed = j.error ?? j.errors?.[0];
+          setError(status === RoomStatus.Open ? (j.paused ?? (failed ? `Bots can't join yet: ${failed}` : null)) : null);
           if (status === RoomStatus.Settled && !j.skipped && !j.errors?.length && !j.error) tries = FINISH_TRIES;
         } catch {
           /* offline: try again on the next tick */
@@ -123,7 +136,7 @@ export function useFinishRooms(rooms: (RoomState & { delegated: boolean })[]) {
   const bots = useBots();
   const asked = useRef(new Map<string, { tries: number; at: number }>());
   useEffect(() => {
-    if (!IS_DEVNET || bots.size === 0) return;
+    if (bots.size === 0) return;
     const now = Date.now();
     const due = rooms.filter((r) => {
       const a = asked.current.get(r.roomId.toString());

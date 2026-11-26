@@ -1,11 +1,16 @@
-// Devnet house bots. When a human takes a seat, three bots join so the room reaches the four-seat
-// minimum; they then trade on the TEE until the round ends. Server-only.
+// House bots. When a human takes a seat, three bots join so the room reaches the four-seat minimum;
+// they then trade on the TEE until the round ends. Server-only.
 //
-// Everything here is stateless and idempotent: bot keys are derived from FAUCET_SECRET_KEY, and what a
-// bot does next is read from chain state, so any server instance can handle any call. The players'
+// A pool wallet funds them: each bot gets its entry (and a little SOL) in the same transaction that
+// seats it, and after the payout its USDC goes back to the pool. Mainnet needs BOT_POOL_SECRET_KEY;
+// devnet uses the faucet key unless a pool is set. Limits in `LIMITS` keep a pool from being drained.
+//
+// Everything here is stateless and idempotent: bot keys are derived from the pool key, and what a bot
+// does next is read from chain state, so any server instance can handle any call. The players'
 // browsers nudge `driveBots` while a room is open in a tab, and any visitor's browser nudges it for a
 // round its players have left: the late cuts, the commit and the payout are permissionless.
 import { createHmac } from "node:crypto";
+import bs58 from "bs58";
 import {
   Connection,
   Keypair,
@@ -18,7 +23,9 @@ import {
 import {
   createAssociatedTokenAccountIdempotentInstruction,
   createMintToCheckedInstruction,
+  createTransferCheckedInstruction,
   getAssociatedTokenAddressSync,
+  getMint,
 } from "@solana/spl-token";
 import { DELEGATION_PROGRAM_ID } from "@magicblock-labs/ephemeral-rollups-sdk";
 import {
@@ -35,8 +42,11 @@ import {
   ixSettle,
   ixTick,
   ixsJoin,
+  isOurRoom,
   positionPda,
+  roomDiscriminator,
   roomPda,
+  withPriority,
   type PositionState,
   type RoomState,
 } from "@/lib/royale/client";
@@ -54,7 +64,7 @@ import {
 } from "@/lib/royale/constants";
 import { connectEr, readableError, sendEr, type ErLink } from "@/lib/royale/er";
 import { sendAndConfirm } from "@/lib/royale/l1";
-import { checkpointTs, cutOverdue, intervalOf, roundEndTs, stormFor } from "@/lib/royale/game";
+import { checkpointTs, cutOverdue, intervalOf, prizeSplit, roundEndTs, stormFor } from "@/lib/royale/game";
 
 type Style = "rider" | "fader" | "degen";
 type Bot = { name: string; style: Style; kp: Keypair };
@@ -64,10 +74,34 @@ const ROSTER: { name: string; style: Style }[] = [
   { name: "Degen", style: "degen" },
 ];
 
-const SOL_LOW = 0.015 * LAMPORTS_PER_SOL; // one join costs well under this, and most of it comes back
-const SOL_TOP_UP = 0.02 * LAMPORTS_PER_SOL;
-const FAUCET_RESERVE = 0.05 * LAMPORTS_PER_SOL;
-const USDC_FLOAT = 100n * 10n ** BigInt(USDC_DECIMALS);
+const MAINNET = CLUSTER === "mainnet";
+const env = (k: string) => (process.env[k] ?? "").trim();
+const USDC_UNIT = 10 ** USDC_DECIMALS;
+const units = (usdc: number) => BigInt(Math.round(usdc * USDC_UNIT));
+
+/** A seat locks about 0.006 SOL until the round ends, and all but about 0.003 comes back. */
+const SOL_LOW = 0.01 * LAMPORTS_PER_SOL;
+const SOL_TARGET = 0.015 * LAMPORTS_PER_SOL;
+/** Spare SOL above the target goes back to the pool, but not dust a transfer would cost more than. */
+const SOL_SWEEP_MIN = 0.005 * LAMPORTS_PER_SOL;
+/** Kept in the pool for fees. The devnet faucet keeps more, since it also funds players. */
+const POOL_RESERVE = (env("BOT_POOL_SECRET_KEY") ? 0.02 : 0.05) * LAMPORTS_PER_SOL;
+
+/** A USDC limit from the environment; "off" or unset on devnet means none. Mainnet has defaults. */
+function limit(name: string, mainnetDefault: number): number | null {
+  const v = env(name);
+  if (v === "off") return null;
+  const n = v ? Number(v) : MAINNET ? mainnetDefault : NaN;
+  return Number.isFinite(n) && n >= 0 ? n : null;
+}
+export const LIMITS = {
+  /** Bots sit only in rooms with an entry up to this, in USDC. */
+  maxEntry: limit("BOT_MAX_ENTRY_USDC", 1),
+  /** Bots stop joining for the day (UTC) once the pool is down this much today, in USDC. */
+  dailyLoss: limit("BOT_DAILY_LOSS_USDC", 10),
+  /** Bots join at most this many rooms a day with any one player. */
+  perPlayer: limit("BOT_ROOMS_PER_PLAYER_DAY", 10),
+};
 /** A bot makes at most one decision per bucket, so calling more often changes nothing. */
 const BUCKET_SECS = 10;
 /** A finished room takes a few seconds to come back from the rollup. */
@@ -76,32 +110,200 @@ const RETURN_POLL_MS = 1_500;
 
 const l1 = new Connection(L1_RPC, "confirmed");
 
-function faucetKey(): Keypair | null {
-  if (CLUSTER === "mainnet") return null; // bots never play for real money
+let poolCache: Keypair | null | undefined;
+/** The wallet that funds the bots and takes their winnings back. Null when bots are off. */
+function poolKey(): Keypair | null {
+  if (poolCache !== undefined) return poolCache;
+  // Mainnet never falls back to the faucet key: real money needs a pool set on purpose.
+  const raw = env("BOT_POOL_SECRET_KEY") || (MAINNET ? "" : env("FAUCET_SECRET_KEY"));
   try {
-    return Keypair.fromSecretKey(Uint8Array.from(JSON.parse(process.env.FAUCET_SECRET_KEY ?? "")));
+    poolCache = raw ? Keypair.fromSecretKey(Uint8Array.from(JSON.parse(raw))) : null;
   } catch {
-    return null;
+    poolCache = null;
   }
+  return poolCache;
 }
 
-const hmac = (faucet: Keypair, label: string) => createHmac("sha256", faucet.secretKey).update(label).digest();
+const hmac = (pool: Keypair, label: string) => createHmac("sha256", pool.secretKey).update(label).digest();
 
 let cached: Bot[] | null = null;
 export function houseBots(): Bot[] {
-  const faucet = faucetKey();
-  if (!faucet) return [];
+  const pool = poolKey();
+  if (!pool) return [];
   return (cached ??= ROSTER.slice(0, BOT_COUNT).map((r, i) => ({
     ...r,
-    kp: Keypair.fromSeed(hmac(faucet, `pnl-royale:bot:v1:${i}`)),
+    kp: Keypair.fromSeed(hmac(pool, `pnl-royale:bot:v1:${i}`)),
   })));
 }
 
-async function sendL1(ixs: TransactionInstruction[], signers: Keypair[]) {
+async function sendL1(ixs: TransactionInstruction[], signers: Keypair[], cu = 300_000) {
   const { blockhash, lastValidBlockHeight } = await l1.getLatestBlockhash("confirmed");
-  const tx = new Transaction({ feePayer: signers[0].publicKey, blockhash, lastValidBlockHeight }).add(...ixs);
+  const tx = new Transaction({ feePayer: signers[0].publicKey, blockhash, lastValidBlockHeight }).add(...withPriority(ixs, cu));
   tx.sign(...signers);
   return sendAndConfirm(l1, tx, lastValidBlockHeight);
+}
+
+// ---------------------------------------------------------------- Pool
+
+const usdcOf = (owner: PublicKey) =>
+  l1.getTokenAccountBalance(getAssociatedTokenAddressSync(USDC_MINT, owner)).then((b) => BigInt(b.value.amount)).catch(() => null);
+
+let minter: Promise<boolean> | null = null;
+/** Devnet: when the pool is the test-USDC mint authority it can mint what it lacks. */
+function poolMints(pool: Keypair): Promise<boolean> {
+  if (MAINNET) return Promise.resolve(false);
+  return (minter ??= getMint(l1, USDC_MINT)
+    .then((m) => !!m.mintAuthority?.equals(pool.publicKey))
+    .catch(() => {
+      minter = null;
+      return false;
+    }));
+}
+
+/** What the pool must hold before bots take seats: SOL for fees and seats, USDC for the largest room. */
+function poolNeeds(mints: boolean) {
+  const sol = POOL_RESERVE + BOT_COUNT * SOL_TARGET;
+  const usdc = mints || LIMITS.maxEntry === null ? 0n : BigInt(BOT_COUNT) * units(LIMITS.maxEntry);
+  return { sol, usdc };
+}
+
+/** Winnings and spare SOL go back to the pool, so it can fund the next room. */
+async function sweep(bots: Bot[], pool: Keypair): Promise<{ usdc: bigint; sol: number }> {
+  const poolAta = getAssociatedTokenAddressSync(USDC_MINT, pool.publicKey);
+  const ixs: TransactionInstruction[] = [createAssociatedTokenAccountIdempotentInstruction(pool.publicKey, poolAta, pool.publicKey, USDC_MINT)];
+  const signers = [pool];
+  const moved = { usdc: 0n, sol: 0 };
+  const held = await Promise.all(bots.map((b) => Promise.all([l1.getBalance(b.kp.publicKey), usdcOf(b.kp.publicKey)])));
+  bots.forEach((b, i) => {
+    const [lamports, usdc] = held[i];
+    const spare = lamports - SOL_TARGET;
+    let signs = false;
+    if (usdc && usdc > 0n) {
+      ixs.push(createTransferCheckedInstruction(getAssociatedTokenAddressSync(USDC_MINT, b.kp.publicKey), USDC_MINT, poolAta, b.kp.publicKey, usdc, USDC_DECIMALS));
+      moved.usdc += usdc;
+      signs = true;
+    }
+    if (spare >= SOL_SWEEP_MIN) {
+      ixs.push(SystemProgram.transfer({ fromPubkey: b.kp.publicKey, toPubkey: pool.publicKey, lamports: spare }));
+      moved.sol += spare;
+      signs = true;
+    }
+    if (signs) signers.push(b.kp);
+  });
+  if (signers.length > 1) await sendL1(ixs, signers);
+  return moved;
+}
+
+// ---------------------------------------------------------------- Today's ledger
+
+const startOfDay = () => Math.floor(Date.now() / 86_400_000) * 86_400;
+let ledgerCache: { at: number; rooms: Promise<RoomState[]> } | null = null;
+
+/** Every room created today (UTC), live or not. Read from chain and cached briefly. */
+function todaysRooms(): Promise<RoomState[]> {
+  if (ledgerCache && Date.now() - ledgerCache.at < 15_000) return ledgerCache.rooms;
+  const disc = bs58.encode(roomDiscriminator());
+  const since = startOfDay();
+  const rooms = Promise.all(
+    [PROGRAM_ID, DELEGATION_PROGRAM_ID].map((owner) => l1.getProgramAccounts(owner, { filters: [{ memcmp: { offset: 0, bytes: disc } }] })),
+  ).then((lists) => lists.flat().flatMap((a) => isOurRoom(a.pubkey, a.account.data as Buffer) ?? []).filter((r) => r.createdTs >= since));
+  rooms.catch(() => (ledgerCache = null));
+  ledgerCache = { at: Date.now(), rooms };
+  return rooms;
+}
+
+/**
+ * The pool's result today, in USDC base units: bot payouts minus bot entries. A room still in play
+ * counts its entries as lost until it pays out, so the brake errs on the safe side.
+ */
+function poolResult(rooms: RoomState[], bots: Bot[]) {
+  const mine = new Set(bots.map((b) => b.kp.publicKey.toBase58()));
+  let pnl = 0n;
+  let played = 0;
+  for (const r of rooms) {
+    const seats = r.players.flatMap((p, i) => (mine.has(p.toBase58()) ? [i] : []));
+    if (seats.length === 0 || r.status === RoomStatus.Cancelled) continue;
+    played += 1;
+    pnl -= r.entryAmount * BigInt(seats.length);
+    if (r.status !== RoomStatus.Settled) continue;
+    const pot = r.entryAmount * BigInt(r.seatsFilled);
+    const prize = pot - (pot * BigInt(r.feeBps)) / 10_000n;
+    const split = prizeSplit(r.finalistCount);
+    r.finalistSeats.slice(0, r.finalistCount).forEach((seat, place) => {
+      if (seats.includes(seat)) pnl += (prize * BigInt(split[place] ?? 0)) / 100n;
+    });
+  }
+  return { pnl, played };
+}
+
+/** Why bots should not sit in `room` right now, as a sentence for the player, or null. */
+async function holdBack(room: RoomState, bots: Bot[], pool: Keypair, todo: Bot[]): Promise<string | null> {
+  if (LIMITS.maxEntry !== null && room.entryAmount > units(LIMITS.maxEntry))
+    return `House bots only join rooms with an entry up to $${LIMITS.maxEntry}.`;
+  const mints = await poolMints(pool);
+  const [sol, usdc] = await Promise.all([l1.getBalance(pool.publicKey), usdcOf(pool.publicKey)]);
+  const need = poolNeeds(mints);
+  if (sol < need.sol || (!mints && (usdc ?? 0n) < room.entryAmount * BigInt(todo.length))) return "House bots are out of funds right now.";
+  if (LIMITS.dailyLoss === null && LIMITS.perPlayer === null) return null;
+  const today = await todaysRooms();
+  if (LIMITS.dailyLoss !== null && poolResult(today, bots).pnl <= -units(LIMITS.dailyLoss)) return "House bots are done for today.";
+  if (LIMITS.perPlayer !== null) {
+    const mine = new Set(bots.map((b) => b.kp.publicKey.toBase58()));
+    const humans = room.players.filter((p) => !mine.has(p.toBase58())).map((p) => p.toBase58());
+    const withBots = today.filter((r) => !r.address.equals(room.address) && r.players.some((p) => mine.has(p.toBase58())));
+    const most = Math.max(0, ...humans.map((h) => withBots.filter((r) => r.players.some((p) => p.toBase58() === h)).length));
+    if (most >= LIMITS.perPlayer)
+      return `House bots have played ${LIMITS.perPlayer} room${LIMITS.perPlayer === 1 ? "" : "s"} with you today. Invite friends to fill this one.`;
+  }
+  return null;
+}
+
+export type PoolStatus = {
+  address: string;
+  sol: number;
+  usdc: string;
+  mints: boolean;
+  needs: { sol: number; usdc: string };
+  topUp: { sol: number; usdc: string };
+  today: { rooms: number; pnl: string };
+  limits: typeof LIMITS;
+  paused: string | null;
+  bots: { name: string; address: string; sol: number; usdc: string }[];
+};
+
+/** Balances, today's result and what to top up, for the status page. Amounts in lamports and USDC base units. */
+export async function poolStatus(): Promise<PoolStatus | null> {
+  const pool = poolKey();
+  if (!pool) return null;
+  const bots = houseBots();
+  const [sol, usdc, mints, today, held] = await Promise.all([
+    l1.getBalance(pool.publicKey),
+    usdcOf(pool.publicKey),
+    poolMints(pool),
+    todaysRooms(),
+    Promise.all(bots.map((b) => Promise.all([l1.getBalance(b.kp.publicKey), usdcOf(b.kp.publicKey)]))),
+  ]);
+  const needs = poolNeeds(mints);
+  const result = poolResult(today, bots);
+  const topUp = { sol: Math.max(0, needs.sol - sol), usdc: needs.usdc > (usdc ?? 0n) ? needs.usdc - (usdc ?? 0n) : 0n };
+  const paused =
+    topUp.sol > 0 || topUp.usdc > 0n
+      ? "Out of funds: top up the pool."
+      : LIMITS.dailyLoss !== null && result.pnl <= -units(LIMITS.dailyLoss)
+        ? "Done for today: the daily loss limit is reached."
+        : null;
+  return {
+    address: pool.publicKey.toBase58(),
+    sol,
+    usdc: String(usdc ?? 0n),
+    mints,
+    needs: { sol: needs.sol, usdc: String(needs.usdc) },
+    topUp: { sol: topUp.sol, usdc: String(topUp.usdc) },
+    today: { rooms: result.played, pnl: String(result.pnl) },
+    limits: LIMITS,
+    paused,
+    bots: bots.map((b, i) => ({ name: b.name, address: b.kp.publicKey.toBase58(), sol: held[i][0], usdc: String(held[i][1] ?? 0n) })),
+  };
 }
 
 // ---------------------------------------------------------------- Seats
@@ -115,20 +317,23 @@ function missingBots(room: RoomState, bots: Bot[]): Bot[] {
   return absent.slice(0, room.maxSeats - room.seatsFilled);
 }
 
-async function seatBot(room: RoomState, bot: Bot, faucet: Keypair) {
+/** Fund `bot` from the pool and seat it, in one transaction: the entry never sits idle in a bot. */
+async function seatBot(room: RoomState, bot: Bot, pool: Keypair, mints: boolean) {
   const me = bot.kp.publicKey;
   const ata = getAssociatedTokenAddressSync(USDC_MINT, me);
-  const [lamports, usdc] = await Promise.all([
-    l1.getBalance(me),
-    l1.getTokenAccountBalance(ata).then((b) => BigInt(b.value.amount)).catch(() => null),
-  ]);
+  const poolAta = getAssociatedTokenAddressSync(USDC_MINT, pool.publicKey);
+  const [lamports, usdc, poolUsdc] = await Promise.all([l1.getBalance(me), usdcOf(me), usdcOf(pool.publicKey)]);
   const ixs: TransactionInstruction[] = [];
-  if (lamports < SOL_LOW) ixs.push(SystemProgram.transfer({ fromPubkey: faucet.publicKey, toPubkey: me, lamports: SOL_TOP_UP - lamports }));
-  if (usdc === null) ixs.push(createAssociatedTokenAccountIdempotentInstruction(faucet.publicKey, ata, me, USDC_MINT));
-  if ((usdc ?? 0n) < room.entryAmount)
-    ixs.push(createMintToCheckedInstruction(USDC_MINT, ata, faucet.publicKey, room.entryAmount + USDC_FLOAT, USDC_DECIMALS));
+  if (lamports < SOL_LOW) ixs.push(SystemProgram.transfer({ fromPubkey: pool.publicKey, toPubkey: me, lamports: SOL_TARGET - lamports }));
+  if (usdc === null) ixs.push(createAssociatedTokenAccountIdempotentInstruction(pool.publicKey, ata, me, USDC_MINT));
+  const short = room.entryAmount - (usdc ?? 0n);
+  if (short > 0n) {
+    if ((poolUsdc ?? 0n) >= short) ixs.push(createTransferCheckedInstruction(poolAta, USDC_MINT, ata, pool.publicKey, short, USDC_DECIMALS));
+    else if (mints) ixs.push(createMintToCheckedInstruction(USDC_MINT, ata, pool.publicKey, short, USDC_DECIMALS));
+    else throw new Error("House bots are out of funds right now.");
+  }
   ixs.push(...(await ixsJoin(me, room.address, { mint: room.mint })));
-  return sendL1(ixs, [faucet, bot.kp]);
+  return sendL1(ixs, [pool, bot.kp], 400_000);
 }
 
 // ---------------------------------------------------------------- Trading
@@ -179,7 +384,7 @@ function decide(bot: Bot, room: RoomState, pos: PositionState, prices: (bigint |
   return { side, leverage: levs[roll[4] % levs.length], asset };
 }
 
-async function tradeBot(room: RoomState, bot: Bot, faucet: Keypair): Promise<boolean> {
+async function tradeBot(room: RoomState, bot: Bot, pool: Keypair): Promise<boolean> {
   const me = bot.kp.publicKey;
   const link = await botLink(bot);
   const posKey = positionPda(room.address, me);
@@ -192,7 +397,7 @@ async function tradeBot(room: RoomState, bot: Bot, faucet: Keypair): Promise<boo
   const bucket = Math.floor(now / BUCKET_SECS);
   if (pos.lastActionTs >= bucket * BUCKET_SECS || now >= roundEndTs(room) - 2) return false;
   const prices = feeds.map((f) => (f ? (decodeFeed(f.data as Buffer)?.price ?? null) : null));
-  const order = decide(bot, room, pos, prices, now, hmac(faucet, `${room.roomId}:${me.toBase58()}:${bucket}`));
+  const order = decide(bot, room, pos, prices, now, hmac(pool, `${room.roomId}:${me.toBase58()}:${bucket}`));
   if (!order || (order.side === pos.side && order.leverage === pos.leverage && order.asset === pos.assetIdx)) return false;
   await sendEr(link.connection, [await ixSetPosition(me, room, me, null, order.side, order.leverage, order.asset)], [bot.kp]);
   return true;
@@ -268,6 +473,10 @@ export type BotReport = {
   settled?: boolean;
   rated?: boolean;
   reclaimed?: number;
+  /** Winnings and spare SOL moved back to the pool (USDC base units, lamports). */
+  swept?: { usdc: string; sol: number };
+  /** Why the bots stay out of this room, as a sentence for the player. */
+  paused?: string;
   errors: string[];
 };
 /** A run past the route's time limit is stuck on a dead connection, and must not hold the room up. */
@@ -287,8 +496,8 @@ export function driveBots(roomId: bigint): Promise<BotReport> {
 }
 
 async function drive(roomId: bigint): Promise<BotReport> {
-  const faucet = faucetKey();
-  if (!faucet) throw new Error("bots are not configured (FAUCET_SECRET_KEY)");
+  const pool = poolKey();
+  if (!pool) throw new Error("bots are not configured (BOT_POOL_SECRET_KEY)");
   const bots = houseBots();
   const address = roomPda(roomId);
   const acc = await l1.getAccountInfo(address, "confirmed");
@@ -320,7 +529,7 @@ async function drive(roomId: bigint): Promise<BotReport> {
     report.status = room.status;
     if (room.status === RoomStatus.Live) {
       const alive = seated.filter((b) => room.elimCheckpoint[room.players.findIndex((p) => p.equals(b.kp.publicKey))] === 0);
-      const acted = await Promise.all(alive.map((b) => attempt(() => tradeBot(room, b, faucet))));
+      const acted = await Promise.all(alive.map((b) => attempt(() => tradeBot(room, b, pool))));
       report.traded = acted.filter(Boolean).length;
     }
     if (room.status !== RoomStatus.Ended) return report;
@@ -334,14 +543,19 @@ async function drive(roomId: bigint): Promise<BotReport> {
     if (!room.mint.equals(USDC_MINT) || Date.now() / 1000 >= room.fillExpiry - 5) return report;
     const todo = missingBots(room, bots);
     if (todo.length === 0) return report;
-    if ((await l1.getBalance(faucet.publicKey)) < FAUCET_RESERVE) throw new Error("the bots are out of devnet SOL");
-    const joined = await Promise.all(todo.map((b) => attempt(() => seatBot(room, b, faucet))));
+    const why = await holdBack(room, bots, pool, todo);
+    if (why) {
+      report.paused = why;
+      return report;
+    }
+    const mints = await poolMints(pool);
+    const joined = await Promise.all(todo.map((b) => attempt(() => seatBot(room, b, pool, mints))));
     report.joined = joined.filter(Boolean).length;
     return report;
   }
 
   // Nobody is certain to press the payout button: a bot may have won, or the winner may have left.
-  const payer = seated[0]?.kp ?? faucet;
+  const payer = seated[0]?.kp ?? pool;
   if (room.status === RoomStatus.Ended) {
     await attempt(() => settleRoom(room, payer));
     const after = await l1.getAccountInfo(address, "confirmed");
@@ -352,6 +566,8 @@ async function drive(roomId: bigint): Promise<BotReport> {
   if (room.status === RoomStatus.Settled) {
     if (!room.rated) report.rated = !!(await attempt(async () => sendL1([cuLimit(400_000), await ixRateRoom(room)], [payer])));
     report.reclaimed = await attempt(() => reclaim(room, seated));
+    const moved = seated.length ? await attempt(() => sweep(seated, pool)) : undefined;
+    if (moved && (moved.usdc > 0n || moved.sol > 0)) report.swept = { usdc: String(moved.usdc), sol: moved.sol };
   }
   return report;
 }

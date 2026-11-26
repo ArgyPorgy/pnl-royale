@@ -34,7 +34,7 @@ import { checkpointTs, finalistsFor, fmtUsdc, intervalOf, prizeSplit, roundEndTs
 import { useSession } from "@/hooks/useSession";
 import { useEr } from "@/hooks/useEr";
 import { useNow, useRoomLive } from "@/hooks/useRoomLive";
-import { botsPending, useBotDriver, useBots } from "@/hooks/useBots";
+import { botsPending, useBotDriver, useBotMaxEntry, useBots } from "@/hooks/useBots";
 import { TeeBadge } from "@/components/TeeBadge";
 import { PlayInstantly } from "@/components/PlayInstantly";
 import { Identicon, TokenStack } from "@/components/brand";
@@ -467,7 +467,9 @@ function SeatsCard({
   const closed = now >= room.fillExpiry;
   // The program's rule: four seats, and then the host at any time or anyone once full or timed out.
   const startable = open && enough && (host || full || closed);
-  const joining = open && seated ? botsPending(room, bots) : 0;
+  const botMax = useBotMaxEntry();
+  const joining = open && seated ? botsPending(room, bots, botMax) : 0;
+  const overMax = open && bots.size > 0 && botMax !== null && room.entryAmount > botMax;
   const line = !open
     ? null
     : startable
@@ -478,10 +480,10 @@ function SeatsCard({
           : "The join window has closed."
       : !enough
         ? joining > 0
-          ? botError
-            ? `Bots can't join yet: ${botError}`
-            : `${joining} bot${joining === 1 ? " is" : "s are"} taking a seat.`
-          : `Needs ${MIN_SEATS} players to start.`
+          ? (botError ?? `${joining} bot${joining === 1 ? " is" : "s are"} taking a seat.`)
+          : overMax
+            ? `House bots only join rooms up to $${fmtUsdc(botMax)}. Invite friends to reach ${MIN_SEATS}.`
+            : `Needs ${MIN_SEATS} players to start.`
         : `Waiting for the host. Opens to everyone in ${mmss(room.fillExpiry - now)}.`;
   return (
     <Card
