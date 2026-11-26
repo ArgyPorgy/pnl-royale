@@ -132,7 +132,7 @@ function Dashboard({ a, net, stale }: { a: Analytics; net: Network; stale: boole
           <Tile label="Paid to winners" value={money(usdc(t.paid))} />
           <Tile label="Rounds played" value={a.rooms.played.toLocaleString()} sub={`${a.rooms.paidOut} paid out`} />
           <Tile label="Players" value={a.players.unique.toLocaleString()} sub={`${a.players.returning} came back · ${a.players.lastWeek} this week`} />
-          <Tile label="House bot result" value={signed(house)} sub={usdc(t.houseAtStake) > 0 ? `${money(usdc(t.houseAtStake))} still in play` : "Bot payouts minus bot entries"} />
+          <Tile label="House bot result" value={signed(house)} sub={usdc(t.houseAtStake) > 0 ? `${money(usdc(t.houseAtStake))} still in play` : usdc(t.returned) > 0 ? `${money(usdc(t.returned))} of bot wins given back` : "Bot wins are shared back with players"} />
           <Tile label="Average pot" value={money(usdc(t.averagePot))} sub={`Biggest ${money(usdc(t.biggestPot))}`} />
         </div>
       </section>

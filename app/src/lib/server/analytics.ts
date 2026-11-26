@@ -6,7 +6,7 @@ import { Connection, PublicKey } from "@solana/web3.js";
 import { DELEGATION_PROGRAM_ID } from "@magicblock-labs/ephemeral-rollups-sdk";
 import { coder, configPda, decodeRating, isOurRoom, ratingDiscriminator, roomDiscriminator, type RoomState } from "@/lib/royale/client";
 import { CLUSTER, L1_RPC, PROGRAM_ID, RoomStatus, StormKind, feedById } from "@/lib/royale/constants";
-import { prizeSplit } from "@/lib/royale/game";
+import { BOT_SHARE_SINCE, botShare, roomPayouts as payouts } from "@/lib/royale/game";
 import { houseBots } from "@/lib/server/bots";
 
 export type Network = "devnet" | "mainnet";
@@ -58,25 +58,6 @@ const STATUS_NAMES: Record<number, string> = {
   [RoomStatus.Cancelled]: "Didn't fill",
 };
 
-/** The program's payout per finalist seat: the split by place, with tied equities pooling their shares. */
-function payouts(r: RoomState): Map<number, bigint> {
-  const out = new Map<number, bigint>();
-  if (r.status !== RoomStatus.Settled || r.finalistCount === 0) return out;
-  const pot = r.entryAmount * BigInt(r.seatsFilled);
-  const prize = pot - (pot * BigInt(r.feeBps)) / 10_000n;
-  const split = prizeSplit(r.finalistCount).map((p) => BigInt(p * 100));
-  const seats = r.finalistSeats.slice(0, r.finalistCount);
-  for (let i = 0; i < seats.length; ) {
-    let j = i + 1;
-    while (j < seats.length && r.finalEquity[seats[j]] === r.finalEquity[seats[i]]) j++;
-    const pooled = split.slice(i, j).reduce((a, b) => a + b, 0n);
-    const each = (prize * pooled) / 10_000n / BigInt(j - i);
-    for (let k = i; k < j; k++) out.set(seats[k], each);
-    i = j;
-  }
-  return out;
-}
-
 const played = (r: RoomState) => r.status !== RoomStatus.Open && r.status !== RoomStatus.Cancelled;
 const usd = (v: bigint) => v.toString();
 
@@ -117,6 +98,7 @@ async function compute(net: Network) {
     paid = 0n,
     houseResult = 0n,
     houseAtStake = 0n,
+    returned = 0n,
     escrow = 0n,
     biggest = 0n,
     seats = 0,
@@ -165,9 +147,11 @@ async function compute(net: Network) {
       fees += fee;
       paid += pot - fee;
       if (botCount) {
-        let won = 0n;
-        for (const [seat, amount] of payouts(r)) if (isBot(r.players[seat])) won += amount;
-        houseResult += won - botStake;
+        // Since BOT_SHARE_SINCE the pool hands what its bots win back to the players.
+        const share = botShare(r, isBot);
+        const back = r.endTs >= BOT_SHARE_SINCE ? share.returned : 0n;
+        returned += back;
+        houseResult += share.won - back - botStake;
       }
     } else if (botCount) {
       houseAtStake += botStake;
@@ -227,6 +211,7 @@ async function compute(net: Network) {
       averagePot: usd(playedRooms.length ? volume / BigInt(playedRooms.length) : 0n),
       houseResult: usd(houseResult),
       houseAtStake: usd(houseAtStake),
+      returned: usd(returned),
     },
     rooms: {
       created: rooms.length,

@@ -90,3 +90,43 @@ export const prizeSplit = (finalists: number): number[] =>
   finalists >= 3 ? [60, 30, 10] : finalists === 2 ? [70, 30] : [100];
 
 export const finalistsFor = (seats: number) => (seats >= 8 ? 3 : seats >= 5 ? 2 : 1);
+
+/** Players removed at cut `k` (mirror of the program's `cuts_at`): the excess spread over the cuts left. */
+export function cutsAt(alive: number, finalists: number, k: number): number {
+  if (alive <= finalists || k === 0 || k > CHECKPOINTS) return 0;
+  return Math.ceil((alive - finalists) / (CHECKPOINTS - k + 1));
+}
+
+/** The program's payout per finalist seat: the split by place, with tied equities pooling their shares. */
+export function roomPayouts(r: RoomState): Map<number, bigint> {
+  const out = new Map<number, bigint>();
+  if (r.status !== RoomStatus.Settled || r.finalistCount === 0) return out;
+  const pot = r.entryAmount * BigInt(r.seatsFilled);
+  const prize = pot - (pot * BigInt(r.feeBps)) / 10_000n;
+  const split = prizeSplit(r.finalistCount).map((p) => BigInt(p * 100));
+  const seats = r.finalistSeats.slice(0, r.finalistCount);
+  for (let i = 0; i < seats.length; ) {
+    let j = i + 1;
+    while (j < seats.length && r.finalEquity[seats[j]] === r.finalEquity[seats[i]]) j++;
+    const pooled = split.slice(i, j).reduce((a, b) => a + b, 0n);
+    const each = (prize * pooled) / 10_000n / BigInt(j - i);
+    for (let k = i; k < j; k++) out.set(seats[k], each);
+    i = j;
+  }
+  return out;
+}
+
+/** House bots never keep what they win: rooms that end from this time on share it back. */
+export const BOT_SHARE_SINCE = Date.UTC(2026, 10, 26, 13, 35) / 1000;
+
+/**
+ * What the house bots won in a settled room, split evenly over every seat. Each player gets `each`
+ * back from the bot pool; the bots' own shares stay in the pool. Zero when no bot finished in the money.
+ */
+export function botShare(r: RoomState, isBot: (p: RoomState["players"][number]) => boolean) {
+  let won = 0n;
+  for (const [seat, amount] of roomPayouts(r)) if (isBot(r.players[seat])) won += amount;
+  const each = r.seatsFilled ? won / BigInt(r.seatsFilled) : 0n;
+  const humans = r.players.filter((p) => !isBot(p));
+  return { won, each, humans, returned: each * BigInt(humans.length) };
+}

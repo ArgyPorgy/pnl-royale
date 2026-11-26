@@ -64,7 +64,7 @@ import {
 } from "@/lib/royale/constants";
 import { connectEr, readableError, sendEr, type ErLink } from "@/lib/royale/er";
 import { sendAndConfirm } from "@/lib/royale/l1";
-import { checkpointTs, cutOverdue, intervalOf, prizeSplit, roundEndTs, stormFor } from "@/lib/royale/game";
+import { BOT_SHARE_SINCE, botShare, checkpointTs, cutOverdue, intervalOf, roundEndTs, stormFor } from "@/lib/royale/game";
 
 type Style = "rider" | "fader" | "degen";
 type Bot = { name: string; style: Style; kp: Keypair };
@@ -213,25 +213,23 @@ function todaysRooms(): Promise<RoomState[]> {
 }
 
 /**
- * The pool's result today, in USDC base units: bot payouts minus bot entries. A room still in play
- * counts its entries as lost until it pays out, so the brake errs on the safe side.
+ * The pool's result today, in USDC base units: bot payouts, less what is shared back with the players,
+ * minus bot entries. A room still in play counts its entries as lost until it pays out, so the brake
+ * errs on the safe side.
  */
 function poolResult(rooms: RoomState[], bots: Bot[]) {
   const mine = new Set(bots.map((b) => b.kp.publicKey.toBase58()));
+  const isBot = (p: PublicKey) => mine.has(p.toBase58());
   let pnl = 0n;
   let played = 0;
   for (const r of rooms) {
-    const seats = r.players.flatMap((p, i) => (mine.has(p.toBase58()) ? [i] : []));
-    if (seats.length === 0 || r.status === RoomStatus.Cancelled) continue;
+    const seats = r.players.filter(isBot).length;
+    if (seats === 0 || r.status === RoomStatus.Cancelled) continue;
     played += 1;
-    pnl -= r.entryAmount * BigInt(seats.length);
+    pnl -= r.entryAmount * BigInt(seats);
     if (r.status !== RoomStatus.Settled) continue;
-    const pot = r.entryAmount * BigInt(r.seatsFilled);
-    const prize = pot - (pot * BigInt(r.feeBps)) / 10_000n;
-    const split = prizeSplit(r.finalistCount);
-    r.finalistSeats.slice(0, r.finalistCount).forEach((seat, place) => {
-      if (seats.includes(seat)) pnl += (prize * BigInt(split[place] ?? 0)) / 100n;
-    });
+    const share = botShare(r, isBot);
+    pnl += share.won - (r.endTs >= BOT_SHARE_SINCE ? share.returned : 0n);
   }
   return { pnl, played };
 }
@@ -451,15 +449,34 @@ async function settleRoom(room: RoomState, payer: Keypair) {
   await sendL1([...atas, await ixSettle(payer.publicKey, room, feeVault)], [payer]);
 }
 
-/** Rent of the bots' finished positions goes back to the bots, so each round costs little SOL. */
-async function reclaim(room: RoomState, bots: Bot[]) {
+/**
+ * Close the bots' finished positions (their rent goes back to the bots) and, in the same transaction,
+ * give the players their share of whatever the bots won. A position closes only once, so a room's
+ * share can never be paid twice, and a failed send leaves both for the next call.
+ */
+async function reclaim(room: RoomState, bots: Bot[], pool: Keypair) {
   const keys = bots.map((b) => positionPda(room.address, b.kp.publicKey));
   const infos = await l1.getMultipleAccountsInfo(keys);
   const open = bots.filter((_, i) => infos[i]?.owner.equals(PROGRAM_ID));
-  if (open.length === 0) return 0;
+  if (open.length === 0) return { closed: 0, shared: 0n };
   const ixs = await Promise.all(open.map((b) => ixClosePosition(b.kp.publicKey, room.address)));
-  await sendL1(ixs, open.map((b) => b.kp));
-  return open.length;
+  const signers = open.map((b) => b.kp);
+  const mine = new Set(bots.map((b) => b.kp.publicKey.toBase58()));
+  const share = room.endTs >= BOT_SHARE_SINCE ? botShare(room, (p) => mine.has(p.toBase58())) : null;
+  let shared = 0n;
+  if (share && share.each > 0n && share.humans.length) {
+    const poolAta = getAssociatedTokenAddressSync(USDC_MINT, pool.publicKey);
+    const atas = share.humans.map((h) => getAssociatedTokenAddressSync(USDC_MINT, h));
+    const exist = await l1.getMultipleAccountsInfo(atas);
+    share.humans.forEach((h, i) => {
+      if (!exist[i]) ixs.push(createAssociatedTokenAccountIdempotentInstruction(pool.publicKey, atas[i], h, USDC_MINT));
+      ixs.push(createTransferCheckedInstruction(poolAta, USDC_MINT, atas[i], pool.publicKey, share.each, USDC_DECIMALS));
+    });
+    signers.push(pool);
+    shared = share.returned;
+  }
+  await sendL1(ixs, signers);
+  return { closed: open.length, shared };
 }
 
 // ---------------------------------------------------------------- Entry point
@@ -473,6 +490,8 @@ export type BotReport = {
   settled?: boolean;
   rated?: boolean;
   reclaimed?: number;
+  /** The bots' winnings shared back with the players, in USDC base units. */
+  shared?: string;
   /** Winnings and spare SOL moved back to the pool (USDC base units, lamports). */
   swept?: { usdc: string; sol: number };
   /** Why the bots stay out of this room, as a sentence for the player. */
@@ -565,9 +584,14 @@ async function drive(roomId: bigint): Promise<BotReport> {
   }
   if (room.status === RoomStatus.Settled) {
     if (!room.rated) report.rated = !!(await attempt(async () => sendL1([cuLimit(400_000), await ixRateRoom(room)], [payer])));
-    report.reclaimed = await attempt(() => reclaim(room, seated));
+    // Winnings go to the pool first, so the pool can pay the players' share as the positions close.
     const moved = seated.length ? await attempt(() => sweep(seated, pool)) : undefined;
     if (moved && (moved.usdc > 0n || moved.sol > 0)) report.swept = { usdc: String(moved.usdc), sol: moved.sol };
+    const done = await attempt(() => reclaim(room, seated, pool));
+    if (done) {
+      report.reclaimed = done.closed;
+      if (done.shared > 0n) report.shared = String(done.shared);
+    }
   }
   return report;
 }
