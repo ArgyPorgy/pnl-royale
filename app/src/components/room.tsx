@@ -178,11 +178,11 @@ export function ChartPanel({
   history?: number[][];
 }) {
   const [tf, setTf] = useState<TvInterval>("1");
-  const [pref, setPref] = useState<"oracle" | "reference" | null>(null);
+  // The reference chart opens first; the oracle line is one tap away.
+  const [mode, setMode] = useState<"oracle" | "reference">("reference");
   const feed = feedById(room.assets[asset]);
   const series = (history?.[asset] ?? []).map((raw) => (feed ? priceToNumber(BigInt(Math.round(raw)), feed.exponent) : Number(raw)));
   const hasSeries = series.length > 8;
-  const mode = pref ?? (hasSeries ? "oracle" : "reference");
   const mark = prices[asset] && feed ? priceToNumber(prices[asset]!, feed.exponent) : series.at(-1);
   return (
     <section className="overflow-hidden rounded-[var(--radius-card)] border border-border bg-surface">
@@ -210,10 +210,10 @@ export function ChartPanel({
           <Segmented<"oracle" | "reference">
             size="sm"
             value={mode}
-            onChange={setPref}
+            onChange={setMode}
             options={[
-              { value: "oracle", label: "Oracle" },
               { value: "reference", label: "Reference" },
+              { value: "oracle", label: "Oracle" },
             ]}
           />
           {mode === "reference" && (

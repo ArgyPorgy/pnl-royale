@@ -4,7 +4,7 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import { useConnection, useWallet } from "@solana/wallet-adapter-react";
 import { useWalletModal } from "@solana/wallet-adapter-react-ui";
-import { Transaction, type Keypair, type TransactionInstruction } from "@solana/web3.js";
+import { Transaction, type Keypair, type PublicKey, type TransactionInstruction } from "@solana/web3.js";
 import { getAssociatedTokenAddressSync } from "@solana/spl-token";
 import { ArrowLeft, Bot, Check, Copy, Eye, ExternalLink, Info, Play, Trophy, Users, Wallet } from "lucide-react";
 import {
@@ -15,27 +15,28 @@ import {
   ixInitPermission,
   ixRequestStorm,
   ixSetPosition,
-  ixSettle,
   ixStartRoom,
+  ixClosePosition,
+  finishedPositions,
   ixTick,
   ixsJoin,
   positionPda,
   sessionTokenPda,
-  configPda,
-  coder,
   cuLimit,
   withPriority,
   type RoomState,
 } from "@/lib/royale/client";
 import { IS_DEVNET, MIN_SEATS, RoomStatus, explorerAccount, feedById } from "@/lib/royale/constants";
 import { readableError, requestFaucet, sendEr } from "@/lib/royale/er";
-import { sendAndConfirm } from "@/lib/royale/l1";
-import { checkpointTs, finalistsFor, fmtUsdc, intervalOf, prizeSplit, roundEndTs } from "@/lib/royale/game";
+import { fitsOneTx, sendAndConfirm } from "@/lib/royale/l1";
+import { BOT_SHARE_SINCE, botShare, checkpointTs, finalistsFor, fmtUsdc, intervalOf, prizeSplit, roomPayouts, roundEndTs } from "@/lib/royale/game";
 import { useSession } from "@/hooks/useSession";
 import { useEr } from "@/hooks/useEr";
 import { useNow, useRoomLive } from "@/hooks/useRoomLive";
 import { botsPending, useBotDriver, useBotMaxEntry, useBots } from "@/hooks/useBots";
 import { TeeBadge } from "@/components/TeeBadge";
+import { GameFx, SoundToggle } from "@/components/GameFx";
+import { sfx } from "@/lib/ui/sound";
 import { PlayInstantly } from "@/components/PlayInstantly";
 import { Identicon, TokenStack } from "@/components/brand";
 import { Activity, ChartPanel, OrderTicket, PlayersTable, PositionCard, RoundProgress, StormBanner, StormCard, mmss, type TxItem } from "@/components/room";
@@ -102,7 +103,7 @@ export default function RoomPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [position?.assetIdx, position?.side]);
 
-  // ---------------- L1 wallet transactions (join / start / settle) ----------------
+  // ---------------- L1 wallet transactions (join / start). The payout needs no one's wallet. ----------------
   const sendL1 = useCallback(
     async (ixs: TransactionInstruction[], extraSigners: Keypair[] = []) => {
       if (!wallet.publicKey || !wallet.signTransaction) throw new Error("Connect a wallet first.");
@@ -142,8 +143,19 @@ export default function RoomPage() {
       const ixs = await ixsJoin(me, room.address, { viewer: kp.publicKey, mint: room.mint });
       const needSession = !(valid && session);
       if (needSession) ixs.push(ixCreateSessionV2(me, kp.publicKey, validUntil, 0));
+      // Deposits from your finished rounds ride along: each closed position returns about 0.0016 SOL.
+      const done = await Promise.race([
+        finishedPositions(connection, me, room.address).catch(() => []),
+        new Promise<PublicKey[]>((r) => setTimeout(() => r([]), 2500)),
+      ]);
+      for (const r of done) {
+        const close = await ixClosePosition(me, r);
+        if (!fitsOneTx(withPriority([...ixs, close]), me, needSession ? 2 : 1)) break;
+        ixs.push(close);
+      }
       await sendL1(ixs, needSession ? [kp] : []);
       if (needSession) commit(kp, validUntil);
+      sfx("join");
       info("You're in. Your entry is in escrow on Solana and your seat is delegated to the TEE.");
     } catch (e) {
       fail(e);
@@ -184,23 +196,6 @@ export default function RoomPage() {
     }
   };
 
-  const settle = async () => {
-    if (preview) return previewNote();
-    if (!me || !room) return setVisible(true);
-    setBusy(true);
-    try {
-      const cfg = await connection.getAccountInfo(configPda());
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const feeVault = (coder.accounts.decode("config", cfg!.data as Buffer) as any).feeVault;
-      await sendL1([await ixSettle(me, room, feeVault)]);
-      info("Paid out on Solana.");
-    } catch (e) {
-      fail(e);
-    } finally {
-      setBusy(false);
-    }
-  };
-
   // ---------------- ER transactions (session key, gasless, popup-free) ----------------
   // `quiet`: background housekeeping (seal, begin, overdue cut, commit). Another client or the
   // crank often wins the race and ours is rejected harmlessly, so only successes are logged.
@@ -227,6 +222,7 @@ export default function RoomPage() {
     try {
       const ix = await ixSetPosition(session.kp.publicKey, room, me, sessionTokenPda(session.kp.publicKey, me), side, lev, a);
       await er_(side === 0 ? "Close position" : `${side > 0 ? "Long" : "Short"} ${assetSymbol(room, a)} ${lev}x`, [ix]);
+      sfx("trade");
     } catch (e) {
       fail(e);
     } finally {
@@ -306,6 +302,7 @@ export default function RoomPage() {
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          <SoundToggle />
           <TeeBadge er={er} error={erError} />
           <Link href={`/watch/${view.roomId}${preview ? "?preview=spectate" : ""}`}>
             <Button size="sm">
@@ -319,6 +316,8 @@ export default function RoomPage() {
           </a>
         </div>
       </div>
+
+      {view.status !== RoomStatus.Open && view.status !== RoomStatus.Cancelled && <GameFx room={view} now={now} me={viewMe} bots={bots} />}
 
       {msg && (
         <div
@@ -401,7 +400,7 @@ export default function RoomPage() {
 
       {ended && (
         <div className="grid gap-5 xl:grid-cols-[380px_1fr]">
-          <ResultCard room={view} seat={viewSeat} delegated={viewDelegated} busy={busy} onSettle={settle} />
+          <ResultCard room={view} seat={viewSeat} delegated={viewDelegated} bots={bots} />
           <div className="space-y-5">
             <PlayersTable room={view} me={viewMe} payouts />
             {playing && txs.length > 0 && <Activity items={txs} token={er?.token ?? null} />}
@@ -621,22 +620,22 @@ function ResultCard({
   room,
   seat,
   delegated,
-  busy,
-  onSettle,
+  bots,
 }: {
   room: RoomState;
   seat: number;
   delegated: boolean;
-  busy: boolean;
-  onSettle: () => void;
+  bots: ReadonlyMap<string, string>;
 }) {
-  const pot = room.entryAmount * BigInt(room.seatsFilled);
-  const prize = pot - (pot * BigInt(room.feeBps)) / 10_000n;
-  const split = prizeSplit(room.finalistCount);
   const place = seat >= 0 ? room.placement[seat] : 0;
   const won = place > 0 && place <= room.finalistCount;
-  const payout = won ? (prize * BigInt(split[place - 1] ?? 0)) / 100n : 0n;
-  const share = `https://x.com/intent/tweet?text=${encodeURIComponent(
+  const payout = seat >= 0 ? (roomPayouts({ ...room, status: RoomStatus.Settled }).get(seat) ?? 0n) : 0n;
+  const isBot = (p: RoomState["players"][number]) => bots.has(p.toBase58());
+  // House bots hand back what they win, split evenly over every seat.
+  const share = room.endTs >= BOT_SHARE_SINCE && bots.size ? botShare({ ...room, status: RoomStatus.Settled }, isBot) : null;
+  const myShare = share && seat >= 0 && !isBot(room.players[seat]) ? share.each : 0n;
+  const settled = room.status === RoomStatus.Settled;
+  const share_ = `https://x.com/intent/tweet?text=${encodeURIComponent(
     won
       ? `Finished #${place} of ${room.seatsFilled} in PnL Royale. Hidden positions in a TEE, onchain eliminations, USDC payouts on Solana.`
       : `Made it to #${place} of ${room.seatsFilled} in PnL Royale. Running it back.`,
@@ -659,24 +658,25 @@ function ResultCard({
               <div className="subhead mt-2 text-xl text-white">Cut at {room.elimCheckpoint[seat]}.</div>
             )}
             <div className="subhead mt-2 text-lg text-white">
-              {room.status === RoomStatus.Settled ? (won ? "Paid on Solana." : "Settled.") : delegated ? "Committing." : "Awaiting payout."}
+              {settled ? (won ? "Paid on Solana." : "Settled.") : delegated ? "Committing results." : "Paying out automatically."}
             </div>
           </>
         ) : (
           <>
             <div className="display mt-4 text-3xl">Round complete</div>
-            <p className="subhead mt-2 text-xl text-white">{room.status === RoomStatus.Settled ? "Paid on Solana." : "Awaiting payout."}</p>
+            <p className="subhead mt-2 text-xl text-white">{settled ? "Paid on Solana." : "Paying out automatically."}</p>
           </>
+        )}
+        {myShare > 0n && (
+          <p className="mt-3 max-w-[300px] text-[13px] text-muted">
+            House bots don&apos;t keep winnings. <span className="num text-up">${fmtUsdc(myShare)}</span> of their ${fmtUsdc(share!.won)}{" "}
+            {settled ? "comes back to your wallet." : "will come back to your wallet after the payout."}
+          </p>
         )}
       </div>
       <div className="mt-2 grid gap-2">
-        {room.status === RoomStatus.Ended && !delegated && (
-          <Button variant="primary" disabled={busy} onClick={onSettle}>
-            Pay out winners on Solana
-          </Button>
-        )}
         {seat >= 0 && (
-          <a href={share} target="_blank" rel="noreferrer">
+          <a href={share_} target="_blank" rel="noreferrer">
             <Button className="w-full">Share result</Button>
           </a>
         )}

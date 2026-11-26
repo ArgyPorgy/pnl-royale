@@ -1,6 +1,7 @@
 // Shared PnL Royale client: PDAs, account decoding, instruction builders.
 // Used by the web app, the relayer and the scripts (no browser-only imports here).
 import { AnchorProvider, BN, BorshCoder, Program, type Idl } from "@coral-xyz/anchor";
+import bs58 from "bs58";
 import {
   ComputeBudgetProgram,
   Connection,
@@ -584,6 +585,30 @@ export async function ixClosePosition(owner: PublicKey, room: PublicKey) {
     .methods.closePosition()
     .accountsStrict({ owner, room, position: positionPda(room, owner) })
     .instruction();
+}
+
+const positionDiscriminator = (): Buffer =>
+  Buffer.from(((idlJson as Idl).accounts?.find((a) => a.name === "Position")?.discriminator ?? []) as number[]);
+
+/**
+ * `owner`'s positions in finished rooms (paid out or cancelled), whose rent is waiting to come back.
+ * A position still in play is delegated, so it never shows up here. Oldest rooms are not preferred:
+ * any finished one will do.
+ */
+export async function finishedPositions(connection: Connection, owner: PublicKey, skip?: PublicKey): Promise<PublicKey[]> {
+  const list = await connection.getProgramAccounts(PROGRAM_ID, {
+    dataSlice: { offset: 8, length: 32 }, // the room
+    filters: [{ memcmp: { offset: 0, bytes: bs58.encode(positionDiscriminator()) } }, { memcmp: { offset: 40, bytes: owner.toBase58() } }],
+  });
+  const rooms = list.map((a) => new PublicKey(a.account.data)).filter((r) => !skip?.equals(r)).slice(0, 20);
+  if (rooms.length === 0) return [];
+  const infos = await connection.getMultipleAccountsInfo(rooms);
+  return rooms.filter((r, i) => {
+    const a = infos[i];
+    if (!a?.owner.equals(PROGRAM_ID)) return false;
+    const st = decodeRoom(r, a.data as Buffer).status;
+    return st === RoomStatus.Settled || st === RoomStatus.Cancelled;
+  });
 }
 
 export const cuLimit = (units: number) => ComputeBudgetProgram.setComputeUnitLimit({ units });
