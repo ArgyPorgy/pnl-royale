@@ -43,9 +43,9 @@ function shake() {
   setTimeout(() => el.classList.remove("fx-shake"), 500);
 }
 
-export function GameFx({ room, now, me, bots }: { room: RoomState; now: number; me: PublicKey | null; bots: ReadonlyMap<string, string> }) {
+export function GameFx({ room, now, me }: { room: RoomState; now: number; me: PublicKey | null }) {
   const seat = me ? room.players.findIndex((p) => p.equals(me)) : -1;
-  const name = (i: number) => (i === seat ? "You" : (bots.get(room.players[i].toBase58()) ?? short(room.players[i])));
+  const name = (i: number) => (i === seat ? "You" : short(room.players[i]));
   const [banner, setBanner] = useState<Banner | null>(null);
   const [flash, setFlash] = useState<{ id: number; tone: Tone } | null>(null);
   const [confetti, setConfetti] = useState(0);
@@ -171,23 +171,23 @@ export function GameFx({ room, now, me, bots }: { room: RoomState; now: number; 
         <div key={`banner-${banner.id}`} className="fx-band absolute inset-x-0 top-[26%] flex justify-center px-4">
           <div
             className={cx(
-              "w-full max-w-[640px] rounded-[28px] border px-6 py-5 text-center shadow-2xl backdrop-blur-md",
+              "fx-result flex flex-col items-center justify-center overflow-hidden rounded-[28px] border px-3 text-center shadow-2xl backdrop-blur-md sm:px-6",
               banner.tone === "out" && "border-down/50 bg-[#2a0d15]/90",
               banner.tone === "safe" && "border-up/40 bg-[#0c2117]/90",
               banner.tone === "win" && "border-accent/50 bg-[#22260c]/90",
               (banner.tone === "cut" || banner.tone === "go") && "border-white/15 bg-black/80",
             )}
           >
-            <div className="kicker text-muted">{banner.kicker}</div>
+            <div className="kicker w-full text-balance text-muted">{banner.kicker}</div>
             <div
               className={cx(
-                "display mt-1 text-[52px] leading-none sm:text-[72px]",
+                "display mt-1 w-full",
                 banner.tone === "out" ? "text-down" : banner.tone === "safe" ? "text-up" : banner.tone === "win" ? "text-accent" : "text-white",
               )}
             >
               {banner.title}
             </div>
-            {banner.sub && <div className="subhead mt-2 text-lg text-white">{banner.sub}</div>}
+            {banner.sub && <div className="subhead mt-1 w-full text-sm text-white sm:text-base">{banner.sub}</div>}
           </div>
         </div>
       )}

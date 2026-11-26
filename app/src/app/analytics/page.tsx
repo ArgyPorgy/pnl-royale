@@ -7,7 +7,7 @@ import type { Analytics, Network } from "@/lib/server/analytics";
 import { CLUSTER } from "@/lib/royale/constants";
 import { short } from "@/lib/royale/game";
 import { Identicon } from "@/components/brand";
-import { Bars, Columns, Legend, SERIES, Segments } from "@/components/charts";
+import { Bars, Columns, SERIES, Segments } from "@/components/charts";
 import { Card, Empty, Pill, Row, Segmented, cx } from "@/components/ui";
 
 const usdc = (v: string | number) => Number(v) / 1e6;
@@ -16,7 +16,6 @@ const money = (v: number) =>
     ? `$${new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 1 }).format(v)}`
     : `$${v.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const axisMoney = (v: number) => (v >= 1000 ? `$${new Intl.NumberFormat("en-US", { notation: "compact" }).format(v)}` : `$${v.toLocaleString("en-US", { maximumFractionDigits: 2 })}`);
-const signed = (v: number) => `${v > 0 ? "+" : v < 0 ? "-" : ""}${money(Math.abs(v))}`;
 const pct = (v: number) => `${Math.round(v * 100)}%`;
 const day = (ts: number, long = false) => new Date(ts * 1000).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC", ...(long ? { year: "numeric" } : {}) });
 const solscan = (net: Network, kind: "account" | "tx", id: string) => `https://solscan.io/${kind}/${id}${net === "devnet" ? "?cluster=devnet" : ""}`;
@@ -70,7 +69,7 @@ export default function AnalyticsPage() {
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="display text-[28px] text-white sm:text-5xl">Analytics</h1>
-          <p className="subhead mt-3 text-lg text-white sm:text-xl">Read live from Solana. Nothing is tracked off chain.</p>
+          <p className="subhead mt-3 text-lg text-white sm:text-xl">Live from Solana.</p>
         </div>
         <Segmented<Network>
           value={net}
@@ -98,10 +97,7 @@ export default function AnalyticsPage() {
 function Dashboard({ a, net, stale }: { a: Analytics; net: Network; stale: boolean }) {
   const t = a.totals;
   const volume = usdc(t.volume);
-  const house = usdc(t.houseResult);
-  const players = { name: "Players", color: SERIES[0] };
-  const bots = { name: "House bots", color: SERIES[1] };
-  const daily = a.daily.map((d) => ({ label: day(d.day), full: day(d.day, true), values: [usdc(d.human), usdc(d.bot)] }));
+  const daily = a.daily.map((d) => ({ label: day(d.day), full: day(d.day, true), values: [usdc(d.human) + usdc(d.bot)] }));
   const rounds = a.daily.map((d) => ({ label: day(d.day), full: day(d.day, true), values: [d.rounds] }));
   const here = net === CLUSTER;
   const nothing = a.rooms.created === 0;
@@ -118,43 +114,32 @@ function Dashboard({ a, net, stale }: { a: Analytics; net: Network; stale: boole
         <div className="mesh flex flex-col justify-between rounded-[var(--radius-card)] border border-white/10 px-5 py-5">
           <div className="text-sm text-white/80">Total volume</div>
           <div className="mt-3 text-5xl font-semibold tracking-tight text-white sm:text-6xl">{money(volume)}</div>
-          <div className="mt-4 space-y-1 text-sm text-white/80">
-            <div className="flex items-center gap-2">
-              <span className="h-2.5 w-2.5 rounded-[3px]" style={{ background: players.color }} /> Players {money(usdc(t.humanVolume))}
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="h-2.5 w-2.5 rounded-[3px]" style={{ background: bots.color }} /> House bots {money(usdc(t.botVolume))}
-            </div>
-          </div>
         </div>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           <Tile label="Revenue (fees)" value={money(usdc(t.fees))} sub={a.config ? `${a.config.feeBps / 100}% of each paid-out pot` : undefined} />
           <Tile label="Paid to winners" value={money(usdc(t.paid))} />
           <Tile label="Rounds played" value={a.rooms.played.toLocaleString()} sub={`${a.rooms.paidOut} paid out`} />
           <Tile label="Players" value={a.players.unique.toLocaleString()} sub={`${a.players.returning} came back · ${a.players.lastWeek} this week`} />
-          <Tile label="House bot result" value={signed(house)} sub={usdc(t.houseAtStake) > 0 ? `${money(usdc(t.houseAtStake))} still in play` : usdc(t.returned) > 0 ? `${money(usdc(t.returned))} of bot wins given back` : "Bot wins are shared back with players"} />
           <Tile label="Average pot" value={money(usdc(t.averagePot))} sub={`Biggest ${money(usdc(t.biggestPot))}`} />
         </div>
       </section>
 
-      <section className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <section className="grid grid-cols-2 gap-3 sm:grid-cols-3">
         <Tile label="Live now" value={a.rooms.live.toLocaleString()} />
         <Tile label="Open now" value={a.rooms.open.toLocaleString()} sub={usdc(t.escrow) > 0 ? `${money(usdc(t.escrow))} in escrow` : undefined} />
         <Tile label="Average players" value={a.rooms.averagePlayers.toFixed(1)} sub={`${pct(a.rooms.fillRate)} of seats filled`} />
-        <Tile label="Bot share of seats" value={pct(a.rooms.botSeatShare)} />
       </section>
 
-      <Card title="Volume by day (UTC, last 14 days)" action={<Legend items={[players, bots]} />}>
-        <Columns data={daily} series={[players, bots]} format={axisMoney} empty={`No volume on ${net} in the last 14 days.`} />
+      <Card title="Volume by day">
+        <Columns data={daily} series={[{ name: "Volume", color: SERIES[0] }]} format={axisMoney} empty={`No volume on ${net} in the last 14 days.`} />
         <details className="mt-3 text-xs text-muted">
-          <summary className="cursor-pointer select-none">Show as a table</summary>
+          <summary className="cursor-pointer select-none">Table</summary>
           <table className="mt-2 w-full">
             <thead className="text-faint">
               <tr>
                 <th className="py-1 text-left font-medium">Day</th>
                 <th className="py-1 text-right font-medium">Rounds</th>
-                <th className="py-1 text-right font-medium">Players</th>
-                <th className="py-1 text-right font-medium">House bots</th>
+                <th className="py-1 text-right font-medium">Volume</th>
               </tr>
             </thead>
             <tbody className="num">
@@ -162,8 +147,7 @@ function Dashboard({ a, net, stale }: { a: Analytics; net: Network; stale: boole
                 <tr key={d.day} className="border-t border-border">
                   <td className="py-1">{day(d.day, true)}</td>
                   <td className="py-1 text-right">{d.rounds}</td>
-                  <td className="py-1 text-right">{money(usdc(d.human))}</td>
-                  <td className="py-1 text-right">{money(usdc(d.bot))}</td>
+                  <td className="py-1 text-right">{money(usdc(d.human) + usdc(d.bot))}</td>
                 </tr>
               ))}
             </tbody>
@@ -172,7 +156,7 @@ function Dashboard({ a, net, stale }: { a: Analytics; net: Network; stale: boole
       </Card>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <Card title="Rounds by day (UTC, last 14 days)">
+        <Card title="Rounds by day">
           <Columns data={rounds} series={[{ name: "Rounds", color: SERIES[0] }]} format={(v) => String(v)} integer height={180} empty={`No rounds on ${net} in the last 14 days.`} />
         </Card>
         <Card title="Room outcomes">
@@ -194,7 +178,7 @@ function Dashboard({ a, net, stale }: { a: Analytics; net: Network; stale: boole
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <Card title="Leaderboard (Elo, players only)" bodyClassName="p-0">
+        <Card title="Leaderboard" bodyClassName="p-0">
           {a.leaders.length === 0 ? (
             <div className="px-4 py-8 text-center text-sm text-muted">No rated players yet.</div>
           ) : (
@@ -256,9 +240,6 @@ function Dashboard({ a, net, stale }: { a: Analytics; net: Network; stale: boole
           ) : (
             <Row label="Config" value="Not set up" />
           )}
-          <p className="mt-3 text-xs text-faint">
-            Volume counts entries in rounds that started. Revenue is the fee taken from paid-out pots. Players exclude the house bots.
-          </p>
         </Card>
       </div>
 
@@ -296,13 +277,12 @@ function Dashboard({ a, net, stale }: { a: Analytics; net: Network; stale: boole
                     <td className="py-2 text-xs text-muted">{r.markets.join(" · ")}</td>
                     <td className="num py-2 text-right text-muted">
                       {r.seats}/{r.maxSeats}
-                      {r.bots > 0 && <div className="text-xs text-faint">{r.bots} bots</div>}
                     </td>
                     <td className="num py-2 text-right text-fg">{money(usdc(r.pot))}</td>
                     <td className="py-2 pl-6 text-xs">
                       {r.winner ? (
                         <span className="text-muted">
-                          {r.winner.bot ? `${r.winner.bot} (bot)` : <span className="num">{short(r.winner.address)}</span>} · <span className="num text-fg">{money(usdc(r.winner.payout))}</span>
+                          <span className="num">{short(r.winner.address)}</span> · <span className="num text-fg">{money(usdc(r.winner.payout))}</span>
                         </span>
                       ) : (
                         <span className="text-faint">—</span>

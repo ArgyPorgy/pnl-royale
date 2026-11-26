@@ -12,7 +12,7 @@ import { readableError, requestFaucet } from "@/lib/royale/er";
 import { sendAndConfirm } from "@/lib/royale/l1";
 import { finalistsFor, fmtPrice, fmtUsdc } from "@/lib/royale/game";
 import { useRooms } from "@/hooks/useRooms";
-import { useBotMaxEntry, useBots, useFinishRooms } from "@/hooks/useBots";
+import { useFinishRooms } from "@/hooks/useBots";
 import { useEr } from "@/hooks/useEr";
 import { useMarket } from "@/hooks/useMarket";
 import { HeroArt } from "@/components/HeroArt";
@@ -269,9 +269,6 @@ function CreateRoom() {
   const toggle = (id: number) => setAssets((a) => (a.includes(id) ? a.filter((x) => x !== id) : a.length < 3 ? [...a, id] : a));
   const entryNum = Math.max(0, parseFloat(entry) || 0);
   const pot = entryNum * seats;
-  const bots = useBots();
-  const botMax = useBotMaxEntry();
-  const noBots = bots.size > 0 && botMax !== null && BigInt(Math.round(entryNum * 10 ** USDC_DECIMALS)) > botMax;
 
   const create = async () => {
     if (!wallet.publicKey || !wallet.signTransaction) return setVisible(true);
@@ -322,9 +319,6 @@ function CreateRoom() {
             />
             <span className="whitespace-nowrap text-xs text-faint">{IS_DEVNET ? "test USDC" : "USDC"}</span>
           </div>
-          {noBots && botMax !== null && (
-            <span className="mt-1.5 block text-xs text-muted">House bots only join rooms up to ${fmtUsdc(botMax)}, so you&apos;ll need 4 players.</span>
-          )}
         </label>
         <div>
           <span className="text-xs font-medium text-muted">Seats</span>

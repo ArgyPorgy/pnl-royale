@@ -6,7 +6,7 @@ import { useConnection, useWallet } from "@solana/wallet-adapter-react";
 import { useWalletModal } from "@solana/wallet-adapter-react-ui";
 import { Transaction, type Keypair, type PublicKey, type TransactionInstruction } from "@solana/web3.js";
 import { getAssociatedTokenAddressSync } from "@solana/spl-token";
-import { ArrowLeft, Bot, Check, Copy, Eye, ExternalLink, Info, Play, Trophy, Users, Wallet } from "lucide-react";
+import { ArrowLeft, Check, Copy, Eye, ExternalLink, Info, Play, Trophy, Users, Wallet } from "lucide-react";
 import {
   assetSymbol,
   ixBeginRound,
@@ -29,7 +29,7 @@ import {
 import { IS_DEVNET, MIN_SEATS, RoomStatus, explorerAccount, feedById } from "@/lib/royale/constants";
 import { readableError, requestFaucet, sendEr } from "@/lib/royale/er";
 import { fitsOneTx, sendAndConfirm } from "@/lib/royale/l1";
-import { BOT_SHARE_SINCE, botShare, checkpointTs, finalistsFor, fmtUsdc, intervalOf, prizeSplit, roomPayouts, roundEndTs } from "@/lib/royale/game";
+import { checkpointTs, finalistsFor, fmtUsdc, intervalOf, prizeSplit, roomPayouts, roundEndTs } from "@/lib/royale/game";
 import { useSession } from "@/hooks/useSession";
 import { useEr } from "@/hooks/useEr";
 import { useNow, useRoomLive } from "@/hooks/useRoomLive";
@@ -317,7 +317,7 @@ export default function RoomPage() {
         </div>
       </div>
 
-      {view.status !== RoomStatus.Open && view.status !== RoomStatus.Cancelled && <GameFx room={view} now={now} me={viewMe} bots={bots} />}
+      {view.status !== RoomStatus.Open && view.status !== RoomStatus.Cancelled && <GameFx room={view} now={now} me={viewMe} />}
 
       {msg && (
         <div
@@ -400,7 +400,7 @@ export default function RoomPage() {
 
       {ended && (
         <div className="grid gap-5 xl:grid-cols-[380px_1fr]">
-          <ResultCard room={view} seat={viewSeat} delegated={viewDelegated} bots={bots} />
+          <ResultCard room={view} seat={viewSeat} delegated={viewDelegated} />
           <div className="space-y-5">
             <PlayersTable room={view} me={viewMe} payouts />
             {playing && txs.length > 0 && <Activity items={txs} token={er?.token ?? null} />}
@@ -468,7 +468,6 @@ function SeatsCard({
   const startable = open && enough && (host || full || closed);
   const botMax = useBotMaxEntry();
   const joining = open && seated ? botsPending(room, bots, botMax) : 0;
-  const overMax = open && bots.size > 0 && botMax !== null && room.entryAmount > botMax;
   const line = !open
     ? null
     : startable
@@ -478,11 +477,7 @@ function SeatsCard({
           ? "Start now, or wait for more players."
           : "The join window has closed."
       : !enough
-        ? joining > 0
-          ? (botError ?? `${joining} bot${joining === 1 ? " is" : "s are"} taking a seat.`)
-          : overMax
-            ? `House bots only join rooms up to $${fmtUsdc(botMax)}. Invite friends to reach ${MIN_SEATS}.`
-            : `Needs ${MIN_SEATS} players to start.`
+        ? `Needs ${MIN_SEATS} players to start.`
         : `Waiting for the host. Opens to everyone in ${mmss(room.fillExpiry - now)}.`;
   return (
     <Card
@@ -497,7 +492,6 @@ function SeatsCard({
         {Array.from({ length: room.maxSeats }, (_, i) => {
           const p = room.players[i];
           const mine = !!p && !!me && p.equals(me);
-          const bot = p ? bots.get(p.toBase58()) : undefined;
           const incoming = !p && i < room.seatsFilled + joining && !botError;
           return (
             <div
@@ -506,18 +500,15 @@ function SeatsCard({
                 "flex h-16 flex-col items-center justify-center gap-1 rounded-xl border text-[11px]",
                 p ? (mine ? "border-white/30 bg-white/10" : "border-white/10 bg-white/5") : "border-dashed border-white/10 text-faint",
               )}
-              title={p ? (bot ? `Bot "${bot}" · ${p.toBase58()}` : p.toBase58()) : undefined}
+              title={p ? p.toBase58() : undefined}
             >
               {p ? (
                 <>
                   <Identicon pubkey={p} size={20} />
-                  <span className={cx("flex items-center gap-1 text-muted", !bot && "num")}>
-                    {bot && <Bot size={11} />}
-                    {mine ? "You" : (bot ?? p.toBase58().slice(0, 4))}
-                  </span>
+                  <span className="num text-muted">{mine ? "You" : p.toBase58().slice(0, 4)}</span>
                 </>
               ) : incoming ? (
-                <span className="skeleton h-3 w-10" aria-label="Bot joining" />
+                <span className="skeleton h-3 w-10" aria-label="Joining" />
               ) : (
                 "Open"
               )}
@@ -620,20 +611,14 @@ function ResultCard({
   room,
   seat,
   delegated,
-  bots,
 }: {
   room: RoomState;
   seat: number;
   delegated: boolean;
-  bots: ReadonlyMap<string, string>;
 }) {
   const place = seat >= 0 ? room.placement[seat] : 0;
   const won = place > 0 && place <= room.finalistCount;
   const payout = seat >= 0 ? (roomPayouts({ ...room, status: RoomStatus.Settled }).get(seat) ?? 0n) : 0n;
-  const isBot = (p: RoomState["players"][number]) => bots.has(p.toBase58());
-  // House bots hand back what they win, split evenly over every seat.
-  const share = room.endTs >= BOT_SHARE_SINCE && bots.size ? botShare({ ...room, status: RoomStatus.Settled }, isBot) : null;
-  const myShare = share && seat >= 0 && !isBot(room.players[seat]) ? share.each : 0n;
   const settled = room.status === RoomStatus.Settled;
   const share_ = `https://x.com/intent/tweet?text=${encodeURIComponent(
     won
@@ -666,12 +651,6 @@ function ResultCard({
             <div className="display mt-4 text-3xl">Round complete</div>
             <p className="subhead mt-2 text-xl text-white">{settled ? "Paid on Solana." : "Paying out automatically."}</p>
           </>
-        )}
-        {myShare > 0n && (
-          <p className="mt-3 max-w-[300px] text-[13px] text-muted">
-            House bots don&apos;t keep winnings. <span className="num text-up">${fmtUsdc(myShare)}</span> of their ${fmtUsdc(share!.won)}{" "}
-            {settled ? "comes back to your wallet." : "will come back to your wallet after the payout."}
-          </p>
         )}
       </div>
       <div className="mt-2 grid gap-2">
