@@ -201,12 +201,13 @@ cp app/.env.example app/.env.local && npm run dev   # http://localhost:3000
    `e2e-round` settles smoke tests T1 (crank in TEE), T2 (privacy), T3 (VRF) and T5 (oracle in program) in one run and prints every signature. `ROOM_ID=<id> npx tsx scripts/verify-room.ts` checks the payouts on-chain. Deploy through `-u https://rpc.magicblock.app/devnet --use-rpc --buffer <saved keypair>`: the public devnet RPC rate-limits program writes.
 3. **Mainnet.** Run the read-only preflight first, then the guarded deploy:
    ```bash
-   source target/e2e-mainnet.env && npx tsx scripts/preflight.ts
+   NEXT_PUBLIC_CLUSTER=mainnet ADMIN_KEYPAIR=~/.config/solana/royale-mainnet-admin.json RELAYER_KEYPAIR=~/.config/solana/royale-mainnet-relayer.json PROGRAM_KEYPAIR=~/.config/solana/royale-program-keypair.json npx tsx scripts/preflight.ts
    ```
    ```bash
-   source target/e2e-mainnet.env && FEE_VAULT_OWNER=<your main wallet> CONFIRM=deploy ./scripts/deploy-mainnet.sh
+   ADMIN_KEYPAIR=~/.config/solana/royale-mainnet-admin.json FEE_VAULT_OWNER=<your main wallet> CONFIRM=deploy ./scripts/deploy-mainnet.sh
    ```
-   `deploy-mainnet.sh` refuses to run if the preflight fails or `CONFIRM=deploy` is missing. It writes through a saved buffer keypair (re-run to resume after rate limits), pays a 50k micro-lamport/CU priority fee, and finishes with `init_config`. It prints, but doesn't run, the command to move the upgrade authority to a hardware wallet.
+   `deploy-mainnet.sh` refuses to run if the preflight fails or `CONFIRM=deploy` is missing. It uses the program key backed up in `~/.config/solana` (a rebuild can replace the copy in `target/deploy`), writes through a saved buffer keypair (re-run to resume after rate limits), pays a 50k micro-lamport/CU priority fee, and finishes with `init_config`: a 5% fee and entries of $1–$5 until the program is audited (`MAX_ENTRY_USDC`). It prints, but doesn't run, the command to move the upgrade authority to a hardware wallet.
+   **House bots on mainnet** play for real USDC from a pool wallet you fund (`~/.config/solana/royale-mainnet-botpool.json`; set its JSON as `BOT_POOL_SECRET_KEY` on the server). Each bot gets its entry in the same transaction that seats it, and after the payout its USDC goes back to the pool. Limits: rooms up to $1, a $10 daily loss cap and 10 rooms per player per day (`BOT_MAX_ENTRY_USDC`, `BOT_DAILY_LOSS_USDC`, `BOT_ROOMS_PER_PLAYER_DAY`). The bots pause when a limit is hit or the pool runs low, and `/bots` shows the balances, today's result and what to top up. A pool needs at least 0.065 SOL and $3 to seat three bots; each round with bots costs about 0.01 SOL in fees and rent that doesn't come back. With one player and three bots in a $1 room, the pool gains about $1 when a bot wins and loses $2.80 when the player wins, so it breaks even if players win about 26% of rounds.
 4. **Mainnet proof rounds:**
    ```bash
    source target/e2e-mainnet.env && PLAYERS=8 ENTRY_USDC=1 INTERVAL=30 npx tsx scripts/e2e-round.ts
@@ -216,7 +217,7 @@ cp app/.env.example app/.env.local && npm run dev   # http://localhost:3000
    ```
    `sweep-players` closes each throwaway player's position, returns their USDC to the admin, closes their token account, and empties their SOL exactly (validated on devnet: 0 lamports left).
 5. **Relayer:** `cp relayer/.env.example relayer/.env`, then `npm run relayer`, or `docker build -f relayer/Dockerfile -t royale-relayer .` from the repo root. Its fee payer is a Boost address.
-6. **Web app:** deploy `app/` to Vercel (Root Directory `app`; npm workspaces are detected). Devnet needs no `NEXT_PUBLIC_*` overrides, but needs one server secret: `FAUCET_SECRET_KEY`, the JSON byte array of the test-USDC mint authority (`~/.config/solana/royale-devnet-deployer.json`). Without it the burner still works, but players must bring their own devnet funds. On mainnet, set `NEXT_PUBLIC_CLUSTER=mainnet` and a Helius/Triton `NEXT_PUBLIC_L1_RPC`; the faucet refuses to run there.
+6. **Web app:** deploy `app/` to Vercel (Root Directory `app`; npm workspaces are detected). Devnet needs no `NEXT_PUBLIC_*` overrides, but needs one server secret: `FAUCET_SECRET_KEY`, the JSON byte array of the test-USDC mint authority (`~/.config/solana/royale-devnet-deployer.json`). Without it the burner still works, but players must bring their own devnet funds. On mainnet, set `NEXT_PUBLIC_CLUSTER=mainnet`, a Helius/Triton `NEXT_PUBLIC_L1_RPC` and, for house bots, `BOT_POOL_SECRET_KEY`; the faucet refuses to run there.
 
 ### Mainnet readiness (preflight, read-only, run 2026-11-23)
 
@@ -227,7 +228,7 @@ cp app/.env.example app/.env.local && npm run dev   # http://localhost:3000
 | Mainnet TEE | ✅ `magicblock-core 1.1.1` (`8886db2`, the build validated on devnet), identity `MTEW…xzo`, attestation verified, all 24 feeds fresh, VRF ER queue active |
 | TEE **write** ingress from the operator's network | ✅ accepted a probe transaction (spec open item T4) |
 | `rpc.magicblock.app/mainnet` (MagicBlock's L1 RPC) | ⚠️ geo-restricted from the operator's network ("Access Restricted… regulatory requirements"). Not used: L1 traffic goes to Solana RPC (public or Helius/Triton) |
-| Keys | mainnet admin `2YuKdKLGQupshkGX5aUQDzAJrTAgkQTQysrfWLVSheYs`, relayer `9XdTMBjgXuNYtPKX4RCmY67XUKK1UPDBbYHKGmxHBaYE` (files in `~/.config/solana`, `chmod 600`; back them up) |
+| Keys | mainnet admin `2YuKdKLGQupshkGX5aUQDzAJrTAgkQTQysrfWLVSheYs`, relayer `9XdTMBjgXuNYtPKX4RCmY67XUKK1UPDBbYHKGmxHBaYE`, bot pool `C11EHHAWXFsPrrSWL1C5f6m1qksb3soVSWKJ6z2YApKa` (files in `~/.config/solana`, `chmod 600`; back them up) |
 
 **Costs:**
 - **Deploy:** about 3.89 SOL. The loader refunds the 3.75 SOL write buffer into the program data, so this is not double. 3.86 SOL stays locked as program rent, and comes back if the program is ever closed.
