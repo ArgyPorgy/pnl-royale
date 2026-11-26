@@ -58,6 +58,8 @@ export const IS_DEVNET = CLUSTER !== "mainnet";
 export const USDC_MINT = new PublicKey(env("NEXT_PUBLIC_USDC_MINT", DEFAULTS[CLUSTER].usdc));
 export const USDC_DECIMALS = 6;
 export const PROGRAM_ID = new PublicKey(env("NEXT_PUBLIC_PROGRAM_ID", (idl as { address: string }).address));
+/** close_room pays room and vault rent only to this wallet. */
+export const RENT_RECIPIENT = new PublicKey("DpGpgVgUyZMCq2HX4mnACi8tXALhE7U1HSQqgUSk3cTh");
 export const EXPLORER_SUFFIX = DEFAULTS[CLUSTER].explorer;
 /** L1 priority fee (micro-lamports per CU). Mainnet only by default; ER transactions are free. */
 export const PRIORITY_MICROLAMPORTS = Number(env("NEXT_PUBLIC_PRIORITY_MICROLAMPORTS", CLUSTER === "mainnet" ? "50000" : "0"));

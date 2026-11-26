@@ -7,6 +7,11 @@ pub const POSITION_SEED: &[u8] = b"pos";
 pub const VAULT_SEED: &[u8] = b"vault";
 pub const RATING_SEED: &[u8] = b"elo";
 
+/// Rent from closed room and vault accounts is paid here. Not the upgrade authority.
+pub const RENT_RECIPIENT: Pubkey = pubkey!("DpGpgVgUyZMCq2HX4mnACi8tXALhE7U1HSQqgUSk3cTh");
+/// Delegation program. A room or position it still owns is not closable on L1.
+pub const DELEGATION_PROGRAM_ID: Pubkey = pubkey!("DELeGGvXpWV2fqJUhqcF5ZSYMS4JTLjteaAMARRSaeSh");
+
 // ---------- Room shape ----------
 pub const MAX_SEATS: usize = 16;
 pub const MIN_SEATS: u8 = 4;

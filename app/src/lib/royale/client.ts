@@ -29,6 +29,7 @@ import {
   ER_VALIDATOR,
   PRIORITY_MICROLAMPORTS,
   PROGRAM_ID,
+  RENT_RECIPIENT,
   SEEDS,
   SESSION_KEYS_PROGRAM_ID,
   SLOT_HASHES,
@@ -584,6 +585,22 @@ export async function ixClosePosition(owner: PublicKey, room: PublicKey) {
   return program()
     .methods.closePosition()
     .accountsStrict({ owner, room, position: positionPda(room, owner) })
+    .instruction();
+}
+
+/** Host or config admin. Remaining accounts are the filled seats' position PDAs, in seat order. */
+export async function ixCloseRoom(authority: PublicKey, room: Pick<RoomState, "address" | "players">) {
+  return program()
+    .methods.closeRoom()
+    .accountsStrict({
+      authority,
+      config: configPda(),
+      room: room.address,
+      recipient: RENT_RECIPIENT,
+      vault: vaultPda(room.address),
+      tokenProgram: TOKEN_PROGRAM_ID,
+    })
+    .remainingAccounts(room.players.map((p) => rw(positionPda(room.address, p))))
     .instruction();
 }
 

@@ -110,4 +110,8 @@ pub mod royale {
     pub fn close_position(ctx: Context<ClosePosition>) -> Result<()> {
         instructions::settle::close_position(ctx)
     }
+
+    pub fn close_room<'info>(ctx: Context<'info, CloseRoom<'info>>) -> Result<()> {
+        instructions::settle::close_room(ctx)
+    }
 }
