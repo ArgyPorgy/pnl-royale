@@ -277,6 +277,8 @@ export function isOurRoom(address: PublicKey, data: Buffer): RoomState | null {
 /** Discriminator filter for getProgramAccounts. */
 export const roomDiscriminator = (): Buffer =>
   Buffer.from(((idlJson as Idl).accounts?.find((a) => a.name === "Room")?.discriminator ?? []) as number[]);
+export const ratingDiscriminator = (): Buffer =>
+  Buffer.from(((idlJson as Idl).accounts?.find((a) => a.name === "Rating")?.discriminator ?? []) as number[]);
 
 // ---------------------------------------------------------------- Oracle
 

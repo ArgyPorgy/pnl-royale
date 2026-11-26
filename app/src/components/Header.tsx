@@ -2,7 +2,7 @@
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { usePathname } from "next/navigation";
-import { LayoutGrid, UserRound } from "lucide-react";
+import { ChartColumn, LayoutGrid, UserRound } from "lucide-react";
 import { CLUSTER } from "@/lib/royale/constants";
 import { Logo } from "./brand";
 import { PlayInstantly } from "./PlayInstantly";
@@ -13,6 +13,7 @@ const WalletMultiButton = dynamic(async () => (await import("@solana/wallet-adap
 const NAV = [
   { href: "/", label: "Rooms", icon: LayoutGrid },
   { href: "/profile", label: "Rating", icon: UserRound },
+  { href: "/analytics", label: "Analytics", icon: ChartColumn },
 ];
 
 export function Header() {
@@ -54,7 +55,7 @@ export function Header() {
         </div>
       </header>
       <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-bg/95 backdrop-blur-xl md:hidden">
-        <div className="mx-auto grid max-w-lg grid-cols-2 px-3 pb-[max(8px,env(safe-area-inset-bottom))] pt-1.5">
+        <div className="mx-auto grid max-w-lg grid-cols-3 px-3 pb-[max(8px,env(safe-area-inset-bottom))] pt-1.5">
           {NAV.map((n) => {
             const on = n.href === "/" ? path === "/" : path.startsWith(n.href);
             const Icon = n.icon;
