@@ -248,6 +248,100 @@ export type Royale = {
       "args": []
     },
     {
+      "name": "closeRoom",
+      "discriminator": [
+        152,
+        197,
+        88,
+        192,
+        98,
+        197,
+        51,
+        211
+      ],
+      "accounts": [
+        {
+          "name": "authority",
+          "signer": true
+        },
+        {
+          "name": "config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  102,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "room",
+          "docs": [
+            "Back on Solana: a delegated room is owned by the delegation program and cannot be closed."
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  114,
+                  111,
+                  111,
+                  109
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "room.room_id",
+                "account": "room"
+              }
+            ]
+          }
+        },
+        {
+          "name": "recipient",
+          "writable": true,
+          "address": "DpGpgVgUyZMCq2HX4mnACi8tXALhE7U1HSQqgUSk3cTh"
+        },
+        {
+          "name": "vault",
+          "docs": [
+            "with a zero balance. After `settle` it is already gone, so the account may be empty."
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "room"
+              }
+            ]
+          }
+        },
+        {
+          "name": "tokenProgram",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        }
+      ],
+      "args": []
+    },
+    {
       "name": "createRoom",
       "discriminator": [
         130,
@@ -2010,6 +2104,11 @@ export type Royale = {
       "code": 6040,
       "name": "positionInUse",
       "msg": "Position still in use"
+    },
+    {
+      "code": 6041,
+      "name": "vaultNotEmpty",
+      "msg": "Vault still holds tokens"
     }
   ],
   "types": [

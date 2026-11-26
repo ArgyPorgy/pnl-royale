@@ -184,3 +184,95 @@ pub fn close_position(ctx: Context<ClosePosition>) -> Result<()> {
     );
     Ok(())
 }
+
+#[derive(Accounts)]
+pub struct CloseRoom<'info> {
+    pub authority: Signer<'info>,
+    #[account(seeds = [CONFIG_SEED], bump = config.bump)]
+    pub config: Box<Account<'info, Config>>,
+    /// Back on Solana: a delegated room is owned by the delegation program and cannot be closed.
+    #[account(
+        mut,
+        close = recipient,
+        seeds = [ROOM_SEED, &room.room_id.to_le_bytes()],
+        bump = room.bump,
+        owner = crate::ID @ RoyaleError::StillDelegated
+    )]
+    pub room: Box<Account<'info, Room>>,
+    /// CHECK: the only address this instruction will pay rent to.
+    #[account(mut, address = RENT_RECIPIENT @ RoyaleError::Unauthorized)]
+    pub recipient: UncheckedAccount<'info>,
+    /// CHECK: vault PDA. Closed in this instruction only when it is still a token account
+    /// with a zero balance. After `settle` it is already gone, so the account may be empty.
+    #[account(mut, seeds = [VAULT_SEED, room.key().as_ref()], bump = room.vault_bump)]
+    pub vault: UncheckedAccount<'info>,
+    pub token_program: Program<'info, Token>,
+}
+
+/// Host (`room.creator`) or `config.admin`, once the room is Settled or Cancelled.
+///
+/// Call `close_position` for every seat first. This instruction refuses while any of those
+/// position accounts is still owned by this program or the delegation program, so a player's
+/// position rent cannot be stranded. `rate_room` also reads the room; run it first if this
+/// game should count toward Elo. Closing does not touch USDC: a vault that still holds tokens
+/// is rejected, and an empty vault is closed to `RENT_RECIPIENT` in the same transaction.
+///
+/// Remaining accounts: the position PDA of each filled seat, in seat order.
+pub fn close_room<'info>(ctx: Context<'info, CloseRoom<'info>>) -> Result<()> {
+    let room = &ctx.accounts.room;
+    require!(
+        room.status == RoomStatus::Settled as u8 || room.status == RoomStatus::Cancelled as u8,
+        RoyaleError::WrongStatus
+    );
+    let authority = ctx.accounts.authority.key();
+    require!(
+        authority == room.creator || authority == ctx.accounts.config.admin,
+        RoyaleError::Unauthorized
+    );
+
+    let room_key = room.key();
+    let seats = room.seats_filled as usize;
+    require!(ctx.remaining_accounts.len() == seats, RoyaleError::PositionMismatch);
+    for (i, info) in ctx.remaining_accounts.iter().enumerate() {
+        let (expected, _) = Pubkey::find_program_address(
+            &[POSITION_SEED, room_key.as_ref(), room.players[i].as_ref()],
+            &crate::ID,
+        );
+        require_keys_eq!(info.key(), expected, RoyaleError::PositionMismatch);
+        if *info.owner == crate::ID {
+            return err!(RoyaleError::PositionInUse);
+        }
+        if *info.owner == DELEGATION_PROGRAM_ID {
+            return err!(RoyaleError::StillDelegated);
+        }
+    }
+
+    let vault_info = ctx.accounts.vault.to_account_info();
+    if *vault_info.owner == anchor_spl::token::ID {
+        let (mint, amount) = {
+            let data = vault_info.try_borrow_data()?;
+            require!(data.len() >= 72, RoyaleError::WrongMint);
+            let mint = Pubkey::try_from(&data[..32]).map_err(|_| error!(RoyaleError::WrongMint))?;
+            let amount = u64::from_le_bytes(data[64..72].try_into().map_err(|_| error!(RoyaleError::WrongMint))?);
+            (mint, amount)
+        };
+        require_keys_eq!(mint, room.mint, RoyaleError::WrongMint);
+        require!(amount == 0, RoyaleError::VaultNotEmpty);
+        let room_id = room.room_id.to_le_bytes();
+        let bump = [room.bump];
+        let seeds: &[&[u8]] = &[ROOM_SEED, &room_id, &bump];
+        token::close_account(CpiContext::new_with_signer(
+            ctx.accounts.token_program.key(),
+            CloseAccount {
+                account: vault_info,
+                destination: ctx.accounts.recipient.to_account_info(),
+                authority: ctx.accounts.room.to_account_info(),
+            },
+            &[seeds],
+        ))?;
+    } else if vault_info.lamports() > 0 {
+        // Not a token account, but it still holds rent. Closing the room would leave it behind.
+        return err!(RoyaleError::VaultNotEmpty);
+    }
+    Ok(())
+}

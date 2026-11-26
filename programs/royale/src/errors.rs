@@ -84,4 +84,6 @@ pub enum RoyaleError {
     WrongQueue,
     #[msg("Position still in use")]
     PositionInUse,
+    #[msg("Vault still holds tokens")]
+    VaultNotEmpty,
 }
