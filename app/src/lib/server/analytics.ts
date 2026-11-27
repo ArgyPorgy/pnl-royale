@@ -107,8 +107,8 @@ async function compute(net: Network) {
     seats = 0,
     capacity = 0,
     botSeats = 0;
-  const humans = new Map<string, number>();
-  const recentHumans = new Set<string>();
+  const wallets = new Map<string, number>();
+  const recentWallets = new Set<string>();
   const markets = new Map<number, number>();
   const storms = new Map<number, number>();
   const statuses = new Map<number, number>();
@@ -117,10 +117,9 @@ async function compute(net: Network) {
   for (const r of rooms) {
     statuses.set(r.status, (statuses.get(r.status) ?? 0) + 1);
     for (const p of r.players) {
-      if (isBot(p)) continue;
       const k = p.toBase58();
-      humans.set(k, (humans.get(k) ?? 0) + 1);
-      if (r.createdTs >= sinceWeek) recentHumans.add(k);
+      wallets.set(k, (wallets.get(k) ?? 0) + 1);
+      if (r.createdTs >= sinceWeek) recentWallets.add(k);
     }
     const pot = r.entryAmount * BigInt(r.seatsFilled);
     if (r.status === RoomStatus.Open && now < r.fillExpiry) escrow += pot;
@@ -164,7 +163,6 @@ async function compute(net: Network) {
   const playedRooms = rooms.filter(played);
   const ratings = ratingAccs
     .map((a) => decodeRating(a.account.data as Buffer))
-    .filter((r) => !isBot(r.player))
     .sort((a, b) => b.elo - a.elo || b.wins - a.wins);
 
   const recent = [...rooms]
@@ -230,9 +228,9 @@ async function compute(net: Network) {
       lastCreated: rooms.reduce((m, r) => Math.max(m, r.createdTs), 0),
     },
     players: {
-      unique: humans.size,
-      returning: [...humans.values()].filter((n) => n >= 2).length,
-      lastWeek: recentHumans.size,
+      unique: wallets.size,
+      returning: [...wallets.values()].filter((n) => n >= 2).length,
+      lastWeek: recentWallets.size,
       rated: ratings.length,
     },
     daily: days.map((d) => ({ day: d.day, rounds: d.rounds, human: usd(d.human), bot: usd(d.bot) })),
