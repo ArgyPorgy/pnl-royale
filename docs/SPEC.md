@@ -407,7 +407,7 @@ Parallelism: M3 can start once M2's IDL exists; M6 and M7 can run alongside M8.
 
 ## 14. Post-hackathon roadmap (business)
 - **Revenue:** a 5% fee per paid room; sponsored tournaments where token projects pay for free-entry royales on their asset (the oracle can add arbitrary feeds per `/pages/tools/oracle/introduction.md`); a pro tier (replays, opponent stats, private streamer rooms); and spectator pools.
-- **Product:** squads, agent seats (bots run by cranks), seasons with leaderboards, Telegram mini-app rooms, Seeker dApp store.
+- **Product:** squads, seasons with leaderboards, Telegram mini-app rooms, Seeker dApp store.
 - **Path:** apply to MagicBlock **Forge** (mainnet growth, engineering hours, marketing push, intros), then **Founders Camp** (investors), as described on build.magicblock.app.
 
 ## 15. Open items

@@ -6,13 +6,13 @@ Built for MagicBlock Solana Blitz v10 (Entertainment Finance). **Live on Solana 
 
 ### Try it
 
-Open the app and click **⚡ Play instantly**. A devnet burner wallet is created in your browser, and the built-in faucet tops it up with devnet SOL and test USDC when you create or join a room. Phantom and Backpack on devnet work too. When you take a seat, **three labelled house bots join automatically**, so every room reaches the four-player minimum. Invite more people with the room link, or press **Start** as the room's host at any point from four players up.
+Open the app and click **⚡ Play instantly**. A devnet burner wallet is created in your browser, and the built-in faucet tops it up with devnet SOL and test USDC when you create or join a room. Phantom and Backpack on devnet work too. Invite more people with the room link, or press **Start** as the room's host at any point from four players up.
 
-On mainnet, connect Phantom or Backpack with real USDC and a little SOL for fees. Entries are $1–$5, and the house bots join rooms with an entry up to `BOT_MAX_ENTRY_USDC` ($1 by default, $5 on the live mainnet site), funded from a pool wallet with daily limits. House bots never keep what they win: their winnings are split evenly across every seat, so each player gets a share back.
+On mainnet, connect Phantom or Backpack with real USDC and a little SOL for fees. Entries are $1–$5.
 
-The payout is automatic. When the round ends, the server commits it, pays the winners on Solana and shares out any bot winnings. Nobody signs anything to get paid. Each cut is a moment: a countdown into it, a red pulse while it's close, a hit when it lands and a banner saying who is out. Sounds are synthesized in the browser, and the speaker button mutes them.
+The payout is automatic. When the round ends, the server commits it and pays the winners on Solana. Nobody signs anything to get paid. Each cut is a moment: a countdown into it, a red pulse while it's close, a hit when it lands and a banner saying who is out. Sounds are synthesized in the browser, and the speaker button mutes them.
 
-**Analytics** (`/analytics`) shows mainnet and devnet side by side, read live from chain: volume (players and house bots apart), revenue from fees, payouts to winners, rounds, players, the house bots' result, daily volume and rounds, room outcomes, the markets traded, the storms MagicBlock VRF fired, the Elo leaderboard and recent rooms.
+**Analytics** (`/analytics`) shows mainnet and devnet side by side, read live from chain: volume, revenue from fees, payouts to winners, rounds, players, daily volume and rounds, room outcomes, the markets traded, the storms MagicBlock VRF fired, the Elo leaderboard and recent rooms.
 
 Demo script: [`docs/DEMO.md`](docs/DEMO.md) · Submission copy: [`docs/SUBMISSION.md`](docs/SUBMISSION.md)
 
@@ -35,7 +35,6 @@ Demo script: [`docs/DEMO.md`](docs/DEMO.md) · Submission copy: [`docs/SUBMISSIO
 | Upgrade authority | `2YuKdKLGQupshkGX5aUQDzAJrTAgkQTQysrfWLVSheYs` |
 | Config | [`46U3…fiAS`](https://solscan.io/account/46U3F8wHvwk1WdNZeVRYy64Tyw1mYKhpdXqwq3acfiAS): 5% fee, entries $1–$5, mainnet USDC, not paused ([setup tx](https://solscan.io/tx/ns2q3EHtgWWTYzB5JS6T6XnQUuccojmGcMcv538aqzakJMZM72DfN2BHt7yihVXwuyy3NVNbQwj9bKy4AAV9MHy)) |
 | Fee vault | `5rd3w56kth1XkBXCgX6BxSdK3gvRhrHNgPMsfjzM1H3K` (the admin's USDC account) |
-| House bot pool | `C11EHHAWXFsPrrSWL1C5f6m1qksb3soVSWKJ6z2YApKa`, funded with 0.25 SOL and 15 USDC |
 | Cost | 3.87 SOL: 3.86 SOL locked as program rent (back if the program is ever closed), about 0.008 SOL in fees and small accounts |
 
 ### Live on the devnet TEE (same validator build as mainnet: `magicblock-core 1.1.1`, `8886db2`)
@@ -57,7 +56,7 @@ Two full rounds ran end to end with real wallets, using `scripts/e2e-round.ts` a
 
 Devnet addresses: config `46U3F8wHvwk1WdNZeVRYy64Tyw1mYKhpdXqwq3acfiAS`, test USDC mint `THPHkxhRHRJE3oVWMpPqQ82F3TCWVUY5rHUxotjfQre`, fee vault `Gw1gDLvq45wJMYCFLmTzQabXxyAqyPjUforwsrRKfdYu`, upgrade authority `G8kNpxodhUqKyV6pByF5qKXqbxsExBR86vnTd8dB8338` (a devnet-only key).
 
-**Played in the browser:** a third round was played end to end in the app itself, as a judge would. One click on Play instantly, create a 4-seat room (the faucet funded the burner), join in one transaction, and `scripts/bots.ts` filled the other seats. The browser then sealed the positions and began the round itself, and a session-key trade landed in 600 ms with no popup. Sealed equity was readable only by the player, crank cuts landed live, and the browser committed and undelegated the results. The result: **won #1 of 4, 3.80 test-USDC paid to the burner wallet.**
+**Played in the browser:** a third round was played end to end in the app itself, as a judge would. One click on Play instantly, create a 4-seat room (the faucet funded the burner), join in one transaction, and three more wallets took the other seats. The browser then sealed the positions and began the round itself, and a session-key trade landed in 600 ms with no popup. Sealed equity was readable only by the player, crank cuts landed live, and the browser committed and undelegated the results. The result: **won #1 of 4, 3.80 test-USDC paid to the burner wallet.**
 
 The live runs caught client bugs the Rust tests couldn't:
 - Anchor TS account names and casing (the client must use the Program's camelCase coder).
@@ -224,7 +223,6 @@ cp app/.env.example app/.env.local && npm run dev   # http://localhost:3000
    ADMIN_KEYPAIR=~/.config/solana/royale-mainnet-admin.json FEE_VAULT_OWNER=<your main wallet> CONFIRM=deploy ./scripts/deploy-mainnet.sh
    ```
    `deploy-mainnet.sh` refuses to run if the preflight fails or `CONFIRM=deploy` is missing. It uses the program key backed up in `~/.config/solana` (a rebuild can replace the copy in `target/deploy`), writes through a saved buffer keypair (re-run to resume after rate limits), pays a 50k micro-lamport/CU priority fee, and finishes with `init_config`: a 5% fee and entries of $1–$5 until the program is audited (`MAX_ENTRY_USDC`). It prints, but doesn't run, the command to move the upgrade authority to a hardware wallet.
-   **House bots on mainnet** play for real USDC from a pool wallet you fund (`~/.config/solana/royale-mainnet-botpool.json`; set its JSON as `BOT_POOL_SECRET_KEY` on the server). Each bot gets its entry in the same transaction that seats it, and after the payout its USDC goes back to the pool. Whatever the bots win is split evenly over every seat: each player gets their share from the pool in the same transaction that closes the bots' positions, which a room can do only once, so a share is never paid twice. Limits: rooms up to $1 by default (the live mainnet site sets `BOT_MAX_ENTRY_USDC=5`; a 3-bot room then needs $15 in the pool), a $10 daily loss cap and 10 rooms per player per day (`BOT_MAX_ENTRY_USDC`, `BOT_DAILY_LOSS_USDC`, `BOT_ROOMS_PER_PLAYER_DAY`). The bots pause when a limit is hit or the pool runs low, and `/bots` shows the balances, today's result and what to top up. A pool needs at least 0.065 SOL and $3 to seat three bots; each round with bots costs about 0.01 SOL in fees and rent that doesn't come back. With one player and three bots in a $1 room, the pool loses $0.15 when a bot wins (the player gets $0.95 of the $3.80 back) and $3 when the player wins, so it pays for every bot room, about $0.86 a round if players win a quarter of the time. The $10 daily cap then covers about 11 such rooms a day, and up to about 66 if the bots win every time.
 4. **Mainnet proof rounds:**
    ```bash
    source target/e2e-mainnet.env && PLAYERS=8 ENTRY_USDC=1 INTERVAL=30 npx tsx scripts/e2e-round.ts
@@ -234,7 +232,7 @@ cp app/.env.example app/.env.local && npm run dev   # http://localhost:3000
    ```
    `sweep-players` closes each throwaway player's position, returns their USDC to the admin, closes their token account, and empties their SOL exactly (validated on devnet: 0 lamports left).
 5. **Relayer:** `cp relayer/.env.example relayer/.env`, then `npm run relayer`, or `docker build -f relayer/Dockerfile -t royale-relayer .` from the repo root. Its fee payer is a Boost address.
-6. **Web app:** deploy `app/` to Vercel (Root Directory `app`; npm workspaces are detected). Devnet needs no `NEXT_PUBLIC_*` overrides, but needs one server secret: `FAUCET_SECRET_KEY`, the JSON byte array of the test-USDC mint authority (`~/.config/solana/royale-devnet-deployer.json`). Without it the burner still works, but players must bring their own devnet funds. On mainnet, set `NEXT_PUBLIC_CLUSTER=mainnet`, a Helius/Triton `NEXT_PUBLIC_L1_RPC` and, for house bots, `BOT_POOL_SECRET_KEY`; the faucet refuses to run there. On both sites, set `MAINNET_RPC_URL` (server-only) so `/analytics` reads mainnet through your own RPC rather than the public one.
+6. **Web app:** deploy `app/` to Vercel (Root Directory `app`; npm workspaces are detected). Devnet needs no `NEXT_PUBLIC_*` overrides, but needs one server secret: `FAUCET_SECRET_KEY`, the JSON byte array of the test-USDC mint authority (`~/.config/solana/royale-devnet-deployer.json`). Without it the burner still works, but players must bring their own devnet funds. On mainnet, set `NEXT_PUBLIC_CLUSTER=mainnet` and a Helius/Triton `NEXT_PUBLIC_L1_RPC`; the faucet refuses to run there. On both sites, set `MAINNET_RPC_URL` (server-only) so `/analytics` reads mainnet through your own RPC rather than the public one.
 
 ### Mainnet preflight (read-only, last run 2026-11-26 through Helius, just before the deploy)
 
@@ -245,7 +243,7 @@ cp app/.env.example app/.env.local && npm run dev   # http://localhost:3000
 | Mainnet TEE | ✅ `magicblock-core 1.1.1` (`8886db2`, the build validated on devnet), identity `MTEW…xzo`, attestation verified, all 24 feeds fresh, VRF ER queue active |
 | TEE **write** ingress from the operator's network | ✅ accepted a probe transaction (spec open item T4) |
 | `rpc.magicblock.app/mainnet` (MagicBlock's L1 RPC) | ⚠️ geo-restricted from the operator's network ("Access Restricted… regulatory requirements"). Not used: L1 traffic goes to Solana RPC (public or Helius/Triton) |
-| Keys | mainnet admin `2YuKdKLGQupshkGX5aUQDzAJrTAgkQTQysrfWLVSheYs`, relayer `9XdTMBjgXuNYtPKX4RCmY67XUKK1UPDBbYHKGmxHBaYE`, bot pool `C11EHHAWXFsPrrSWL1C5f6m1qksb3soVSWKJ6z2YApKa` (files in `~/.config/solana`, `chmod 600`; back them up) |
+| Keys | mainnet admin `2YuKdKLGQupshkGX5aUQDzAJrTAgkQTQysrfWLVSheYs`, relayer `9XdTMBjgXuNYtPKX4RCmY67XUKK1UPDBbYHKGmxHBaYE` (files in `~/.config/solana`, `chmod 600`; back them up) |
 
 **Costs:**
 - **Deploy:** 3.87 SOL on 2026-11-26. The loader refunds the 3.75 SOL write buffer into the program data, so this is not double. 3.86 SOL stays locked as program rent, and comes back if the program is ever closed.
@@ -258,12 +256,12 @@ cp app/.env.example app/.env.local && npm run dev   # http://localhost:3000
 ```
 programs/royale/src/   lib.rs · game.rs (pure math + tests) · oracle.rs · state.rs · instructions/{lobby,round,settle}.rs
 tests-magicsvm/        in-process ER integration tests (+ fixtures: live feed bytes, session-keys program)
-app/                   Next.js 15 PWA · src/lib/royale (shared TS SDK) · src/lib/wallet (devnet burner) · api/faucet · api/bots · hooks · components · pages
+app/                   Next.js 15 PWA · src/lib/royale (shared TS SDK) · src/lib/wallet (devnet burner) · api/faucet · hooks · components · pages
 relayer/               crank backup, orchestrator, settle caller, /rooms index
-scripts/               build.sh · e2e-round.ts · bots.ts · verify-room.ts · sweep-players.ts · preflight.ts · deploy-mainnet.sh · init-config.ts · devnet-mint.ts · smoke-tee.ts · sdk-selftest.ts
+scripts/               build.sh · e2e-round.ts · verify-room.ts · sweep-players.ts · preflight.ts · deploy-mainnet.sh · init-config.ts · devnet-mint.ts · smoke-tee.ts · sdk-selftest.ts
 docs/                  SPEC.md · DEMO.md · SUBMISSION.md · devnet-runs/ (live round logs with signatures)
 ```
 
 ## Roadmap
 
-A 5% fee per paid room; sponsored tournaments on a project's own feed; a pro tier (replays, opponent stats, private streamer rooms); squads, agent seats run by cranks, seasons, and Telegram mini-app rooms. Then MagicBlock Forge and Founders Camp.
+A 5% fee per paid room; sponsored tournaments on a project's own feed; a pro tier (replays, opponent stats, private streamer rooms); squads, seasons, and Telegram mini-app rooms. Then MagicBlock Forge and Founders Camp.
